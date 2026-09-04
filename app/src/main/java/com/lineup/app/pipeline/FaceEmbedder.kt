@@ -51,7 +51,12 @@ class FaceEmbedder(context: Context) : AutoCloseable {
         try {
             embedCrop(crop)
         } finally {
-            crop.recycle()
+            // Bitmap.createBitmap(src, 0, 0, src.width, src.height) returns `src` itself, no
+            // copy -- which happens whenever the expanded+clamped crop rect exactly fills the
+            // frame (edge-clipped faces near a border). Recycling `crop` there would recycle
+            // the caller-owned, possibly-shared `frame` bitmap out from under it, crashing the
+            // next face embedded from the same frame ("cannot use a recycled source").
+            if (crop !== frame) crop.recycle()
         }
     }
 

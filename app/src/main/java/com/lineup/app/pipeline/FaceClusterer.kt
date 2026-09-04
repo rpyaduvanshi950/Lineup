@@ -17,13 +17,31 @@ class FaceClusterer(
     companion object {
         /** Named per BUILD_GUIDE.md — tune by sweeping 0.50..0.80 against known cluster counts. */
         const val CLUSTER_SIMILARITY_THRESHOLD = 0.6f
+
+        /**
+         * A single sharp, frontal, well-lit crop can still land below [CLUSTER_SIMILARITY_THRESHOLD]
+         * against its own person's centroid purely from scale mismatch — e.g. a much closer/wider
+         * framing than that person's other shots (verified on-device: a 21.7s frame of an
+         * otherwise 4-appearance person came out as its own size-1 cluster). A tiny cluster
+         * that never grew past the main threshold is far more likely to be exactly that kind of
+         * fragment than a genuine standalone extra person, so it gets one more chance to merge
+         * into whichever real cluster it's closest to, at a lower bar.
+         */
+        const val RESCUE_MERGE_MAX_SIZE = 2
+        const val RESCUE_MERGE_THRESHOLD = 0.45f
     }
 
     fun cluster(faces: List<EmbeddedFace>): List<PersonCluster> {
         if (faces.isEmpty()) return emptyList()
 
-        var clusters = faces.mapIndexed { i, f -> PersonCluster(i, listOf(f)) }
+        var clusters = agglomerate(faces.mapIndexed { i, f -> PersonCluster(i, listOf(f)) }, similarityThreshold)
+        clusters = rescueMergeFragments(clusters)
 
+        return clusters.mapIndexed { newId, c -> c.copy(id = newId) }
+    }
+
+    private fun agglomerate(start: List<PersonCluster>, threshold: Float): List<PersonCluster> {
+        var clusters = start
         while (clusters.size > 1) {
             var bestI = -1
             var bestJ = -1
@@ -39,7 +57,7 @@ class FaceClusterer(
                     }
                 }
             }
-            if (bestSim < similarityThreshold) break
+            if (bestSim < threshold) break
 
             val merged = PersonCluster(
                 id = clusters[bestI].id,
@@ -47,8 +65,27 @@ class FaceClusterer(
             )
             clusters = clusters.filterIndexed { idx, _ -> idx != bestI && idx != bestJ } + merged
         }
+        return clusters
+    }
 
-        return clusters.mapIndexed { newId, c -> c.copy(id = newId) }
+    /** Second pass: give every small leftover cluster one chance to merge into its nearest
+     * real (larger) cluster at [RESCUE_MERGE_THRESHOLD], instead of surviving as a phantom person. */
+    private fun rescueMergeFragments(clusters: List<PersonCluster>): List<PersonCluster> {
+        val (small, real) = clusters.partition { it.faces.size <= RESCUE_MERGE_MAX_SIZE }
+        if (small.isEmpty() || real.isEmpty()) return clusters
+
+        val result = real.toMutableList()
+        for (fragment in small) {
+            val fragmentCentroid = fragment.centroid()
+            val bestIdx = result.indices.maxByOrNull { cosineSimilarity(fragmentCentroid, result[it].centroid()) }
+            val bestSim = bestIdx?.let { cosineSimilarity(fragmentCentroid, result[it].centroid()) } ?: -2f
+            if (bestIdx != null && bestSim >= RESCUE_MERGE_THRESHOLD) {
+                result[bestIdx] = PersonCluster(id = result[bestIdx].id, faces = result[bestIdx].faces + fragment.faces)
+            } else {
+                result += fragment // genuinely stays its own person -- no good match found
+            }
+        }
+        return result
     }
 
     private fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {

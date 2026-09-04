@@ -71,6 +71,23 @@ class VideoRepository(private val context: Context) {
             val segmenter = AppearanceSegmenter()
             val appearances = clusters.flatMap { segmenter.segment(it) }
 
+            // Debug aid: small (<=2-face) clusters that survived rescue-merge are almost always
+            // a fragmentation artifact worth investigating (see FaceClusterer's rescue-merge
+            // pass) rather than a genuine one-off extra person -- log enough to pull the actual
+            // frame and inspect it.
+            for (c in clusters) {
+                if (c.faces.size <= 2) {
+                    Log.i(
+                        TAG,
+                        "SMALL CLUSTER person${c.id} size=${c.faces.size}: " +
+                            c.faces.joinToString {
+                                "t=${it.detection.timestampMs}ms sharp=${it.detection.sharpness.toInt()} " +
+                                    "yaw=${it.detection.headEulerY.toInt()} path=${it.detection.framePath}"
+                            },
+                    )
+                }
+            }
+
             Log.i(
                 TAG,
                 "Step 2 done: ${clusters.size} people, ${appearances.size} appearances " +
