@@ -13,9 +13,21 @@ research behind each tech choice.
 - **Step 2 (identify)** — done. `FaceEmbedder` → `FaceClusterer` → `AppearanceSegmenter`.
 - **Step 3 (select & compose)** — done. `ShotScorer` → `RepresentativeShotSelector` →
   `CollageComposer`, wired into a real `ResultsActivity` with save/share.
-- **Step 4 (wire, verify, ship)** — mostly done: full pipeline runs end-to-end on-device
-  (VideoSelect → Processing → Results) for all three samples. Remaining: polish, a final
-  full run + demo recording before submission.
+- **Step 4 (wire, verify, ship)** — done: full pipeline verified end-to-end on-device
+  (VideoSelect → SAF picker → Processing → Results with collage + save/share) for all three
+  samples; a rough demo recording exists at `docs/demo.mp4` (see below).
+
+## Demo
+
+`docs/demo.mp4` (35s, emulator recording): the real app, real pipeline, real UI — picking
+Sample 1 through the actual system file picker, then processing → results for all three
+samples. It's an editorial cut (jump cuts between samples, title cards reused from a real
+processing screenshot to bridge them) rather than one continuous take, because capturing three
+full ~60-90s on-device runs back-to-back exceeds what a single `adb screenrecord` invocation can
+hold — the *submission* recording should be a real, unedited screen capture on your own device
+(the flow itself needs no editing to look good, per the assignment). Screenshots of each screen
+are also in `docs/` (`screenshot_home.png`, `screenshot_processing.png`, `screenshot_collage.png`
++ `_scrolled.png`).
 
 ## Build & setup
 
