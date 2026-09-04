@@ -64,3 +64,11 @@ data class Appearance(
     val endMs: Long,
     val faces: List<EmbeddedFace>,
 )
+
+/** The chosen best shot for one person: which frame, and the generous (not tight-face) crop rect. */
+data class RepresentativeShot(
+    val personId: Int,
+    val framePath: String,
+    val cropRect: Rect,
+    val score: Float,
+)

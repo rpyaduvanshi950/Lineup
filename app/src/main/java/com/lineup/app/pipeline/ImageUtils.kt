@@ -31,6 +31,30 @@ object ImageUtils {
         return clampRect(expanded, w, h) ?: Rect(0, 0, w, h)
     }
 
+    /**
+     * Shrinks [rect] so it never crosses the midpoint towards any bbox in [neighbors] -- used
+     * when a representative-shot crop would otherwise bleed into a different person's face in
+     * a shared frame (confirmed on-device: an unclipped 2.5x expansion around one face in a
+     * two-person frame produced a tile visibly bisecting both people).
+     */
+    fun clipAwayFromNeighbors(rect: Rect, ownBbox: Rect, neighbors: List<Rect>): Rect {
+        val r = Rect(rect)
+        val ownCx = ownBbox.exactCenterX()
+        val ownCy = ownBbox.exactCenterY()
+        for (n in neighbors) {
+            val midX = (ownCx + n.exactCenterX()) / 2f
+            if (n.exactCenterX() > ownCx) r.right = min(r.right, midX.toInt())
+            else if (n.exactCenterX() < ownCx) r.left = max(r.left, midX.toInt())
+
+            val midY = (ownCy + n.exactCenterY()) / 2f
+            if (n.exactCenterY() > ownCy) r.bottom = min(r.bottom, midY.toInt())
+            else if (n.exactCenterY() < ownCy) r.top = max(r.top, midY.toInt())
+        }
+        if (r.right <= r.left) r.right = r.left + 1
+        if (r.bottom <= r.top) r.bottom = r.top + 1
+        return r
+    }
+
     fun cropBitmap(src: Bitmap, rect: Rect): Bitmap? {
         val r = clampRect(rect, src.width, src.height) ?: return null
         return Bitmap.createBitmap(src, r.left, r.top, r.width(), r.height())

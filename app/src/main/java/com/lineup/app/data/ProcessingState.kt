@@ -36,6 +36,17 @@ sealed class ProcessingState {
             get() = clusters.map { c -> c.id to appearances.count { it.personId == c.id } }
     }
 
+    /** Step 3 result: a representative shot chosen and the collage composed and cached to disk. */
+    data class Step3Complete(
+        val clusters: List<PersonCluster>,
+        val appearances: List<Appearance>,
+        val similarityThreshold: Float,
+        val collageFilePath: String,
+    ) : ProcessingState() {
+        val appearanceCounts: List<Pair<Int, Int>>
+            get() = clusters.map { c -> c.id to appearances.count { it.personId == c.id } }
+    }
+
     data class Failed(val message: String, val cause: Throwable? = null) : ProcessingState()
 
     enum class Stage(val label: String) {
@@ -43,5 +54,6 @@ sealed class ProcessingState {
         DETECTING_FACES("Detecting faces"),
         EMBEDDING_FACES("Identifying people"),
         CLUSTERING("Grouping appearances"),
+        COMPOSING("Composing collage"),
     }
 }

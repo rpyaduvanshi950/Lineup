@@ -11,8 +11,11 @@ research behind each tech choice.
 
 - **Step 1 (ingest & detect)** — done. SAF video picker → `FrameExtractor` → `FaceDetectorWrapper`.
 - **Step 2 (identify)** — done. `FaceEmbedder` → `FaceClusterer` → `AppearanceSegmenter`.
-- **Step 3 (select & compose)** — not started. Representative-shot scoring and the collage UI.
-- **Step 4 (wire, verify, ship)** — not started. Results screen, save/share, full 3-sample run.
+- **Step 3 (select & compose)** — done. `ShotScorer` → `RepresentativeShotSelector` →
+  `CollageComposer`, wired into a real `ResultsActivity` with save/share.
+- **Step 4 (wire, verify, ship)** — mostly done: full pipeline runs end-to-end on-device
+  (VideoSelect → Processing → Results) for all three samples. Remaining: polish, a final
+  full run + demo recording before submission.
 
 ## Build & setup
 
@@ -75,10 +78,35 @@ mismatch (a much closer framing than that person's other shots).
 | 2 | 7 | 21 | [3,4,4,4,4,1,1] |
 | 3 | 6 | 19 | [4,3,4,3,1,4] |
 
+## Step 3: representative shot + collage
+
+`ShotScorer` scores every candidate on frontality (head yaw/pitch), sharpness (normalized against
+the sharpest candidate actually available for that person — "sharp" is relative to what a clip
+offers, not an absolute bar), eyes-open, and smiling. `RepresentativeShotSelector` prefers
+non-edge-clipped candidates (falling back to edge-clipped only if that's all a person has), then
+strongly prefers a frame where that person appears **alone** — verified on-device that picking a
+shared two-person frame and expanding its bbox 2.5× can bleed into the neighboring face, producing
+a tile that visibly bisects two different people. When a shared frame is unavoidable, the crop is
+clipped to the midpoint against every neighboring bbox so it never crosses into someone else's
+face — a real trade-off documented below. `CollageComposer` lays the results into a 2/3/4-column
+grid (by person count), rounded-corner tiles, scale-to-cover (never letterboxed or stretched), a
+header with the person count, saved as a cached PNG and handed to `ResultsActivity` for
+save-to-gallery (`MediaStore.Images`) and share (`FileProvider` + `ACTION_SEND`).
+
 ## Known deviations / open items
 
-- Samples 2 and 3 still over-count people by 1–2. Traced to a shared two-face frame (sample 2,
-  ~10.1s): the 1.6× expanded embedding crop for each face likely bleeds into the neighboring
-  face, degrading both embeddings below even the rescue-merge threshold. Next fix: shrink or clip
-  the embedding crop when another detection's bbox is nearby, rather than a raw uniform expansion.
+- Samples 2 and 3 still over-count people by 1–2 (see the on-device table above). Traced to a
+  shared two-face frame (sample 2, ~10.1s): the 1.6× expanded *embedding* crop for each face
+  likely bleeds into the neighboring face, degrading both embeddings below even the rescue-merge
+  threshold. `RepresentativeShotSelector`'s neighbor-clipping fix addresses this for the
+  *collage crop*; the same clipping has not yet been applied to the embedding crop in
+  `FaceEmbedder`, which is the actual fix needed for the identity-count issue.
+- When a person's only available representative-shot candidates are all in a shared frame, the
+  neighbor-clip can produce an unusually tight tile (verified on sample 1: one person's tile
+  ended up mouth/chin-only) rather than the intended generous 2.5× crop. Better fix: re-center
+  the clipped rect on the face rather than just shrinking it, or fall back to a slightly lower
+  expansion factor before clipping.
 - No landmark-based face alignment yet (MVP padded-bbox-crop only, per `BUILD_GUIDE.md` §3).
+- `saveToGallery()` needs `WRITE_EXTERNAL_STORAGE` at runtime on API 26-28 (declared in the
+  manifest with `maxSdkVersion="28"`, but no runtime permission-request flow is implemented yet —
+  untested below API 29).

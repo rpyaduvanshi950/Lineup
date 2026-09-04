@@ -10,6 +10,12 @@
     <string name="stage_detecting_faces">Detecting faces</string>
     <string name="stage_embedding_faces">Identifying people</string>
     <string name="stage_clustering">Grouping appearances</string>
+    <string name="stage_composing">Composing collage</string>
+
+    <string name="save_to_gallery">Save</string>
+    <string name="share">Share</string>
+    <string name="saved_to_gallery">Saved to gallery</string>
+    <string name="save_failed">Couldn\'t save the collage</string>
 
     <string name="results_title_format">%1$d people found</string>
     <string name="results_subtitle_format">%1$d appearances in total · similarity threshold %2$s</string>

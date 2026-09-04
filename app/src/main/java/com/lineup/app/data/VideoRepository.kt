@@ -6,11 +6,15 @@ import android.net.Uri
 import android.util.Log
 import com.lineup.app.model.EmbeddedFace
 import com.lineup.app.model.FaceDetection
+import com.lineup.app.model.RepresentativeShot
 import com.lineup.app.pipeline.AppearanceSegmenter
+import com.lineup.app.pipeline.CollageComposer
 import com.lineup.app.pipeline.FaceClusterer
 import com.lineup.app.pipeline.FaceDetectorWrapper
 import com.lineup.app.pipeline.FaceEmbedder
 import com.lineup.app.pipeline.FrameExtractor
+import com.lineup.app.pipeline.ImageUtils
+import com.lineup.app.pipeline.RepresentativeShotSelector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,6 +99,14 @@ class VideoRepository(private val context: Context) {
                     clusters.joinToString { c -> "person${c.id}=${appearances.count { it.personId == c.id }}" },
             )
             _state.value = ProcessingState.Step2Complete(frames, clusters, appearances, similarityThreshold)
+
+            _state.value = ProcessingState.Running(ProcessingState.Stage.COMPOSING, 0, 1)
+            val detectionsByFrame = usableDetections.groupBy { it.framePath }
+            val collageFile = composeCollage(clusters, detectionsByFrame)
+            Log.i(TAG, "Step 3 done: collage written to ${collageFile.absolutePath}")
+            _state.value = ProcessingState.Step3Complete(
+                clusters, appearances, similarityThreshold, collageFile.absolutePath,
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "Pipeline failed", t)
             _state.value = ProcessingState.Failed(t.message ?: "Processing failed", t)
@@ -158,6 +170,31 @@ class VideoRepository(private val context: Context) {
         } finally {
             embedder.close()
         }
+    }
+
+    /**
+     * Picks one representative shot per person, crops it generously (never a tight face
+     * bbox) from the full-resolution source frame, composes the grid collage, and caches it
+     * to disk so it can hand off to ResultsActivity by file path.
+     */
+    private suspend fun composeCollage(
+        clusters: List<com.lineup.app.model.PersonCluster>,
+        detectionsByFrame: Map<String, List<FaceDetection>>,
+    ): java.io.File = withContext(Dispatchers.Default) {
+        val selector = RepresentativeShotSelector()
+        val shots: List<RepresentativeShot> = clusters.mapNotNull { selector.select(it, detectionsByFrame) }
+
+        // Not recycling these decoded frames: there are only as many as there are people (a
+        // handful), and cropBitmap can alias the source bitmap itself (see FaceEmbedder's fix)
+        // when a rect fills the whole frame, so recycling here isn't safe to do blindly anyway.
+        val tiles = shots.mapNotNull { shot ->
+            coroutineContext.ensureActive()
+            val frame = BitmapFactory.decodeFile(shot.framePath) ?: return@mapNotNull null
+            ImageUtils.cropBitmap(frame, shot.cropRect)
+        }
+
+        val collage = CollageComposer.compose(tiles)
+        CollageComposer.writeToShareCache(context, collage, "collage_${System.currentTimeMillis()}.png")
     }
 
     fun reset() {

@@ -1,11 +1,83 @@
 package com.lineup.app.ui
 
+import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.lineup.app.R
+import com.lineup.app.databinding.ActivityResultsBinding
+import com.lineup.app.pipeline.CollageComposer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
-/** Placeholder — populated in Step 3/4 (collage + per-person appearance counts). */
+/** Shows the composed collage, per-person appearance counts, and lets the user save/share it. */
 class ResultsActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityResultsBinding
+    private var collageFile: File? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityResultsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val path = intent.getStringExtra(EXTRA_COLLAGE_PATH)
+        val personIds = intent.getIntArrayExtra(EXTRA_PERSON_IDS) ?: intArrayOf()
+        val counts = intent.getIntArrayExtra(EXTRA_APPEARANCE_COUNTS) ?: intArrayOf()
+        val totalAppearances = intent.getIntExtra(EXTRA_TOTAL_APPEARANCES, 0)
+        val threshold = intent.getFloatExtra(EXTRA_THRESHOLD, 0f)
+
+        if (path == null) {
+            finish()
+            return
+        }
+        collageFile = File(path)
+        binding.collageImage.setImageBitmap(BitmapFactory.decodeFile(path))
+
+        binding.resultsSubtitle.text = getString(
+            R.string.results_subtitle_format, totalAppearances, "%.2f".format(threshold),
+        )
+
+        binding.peopleRecycler.layoutManager = LinearLayoutManager(this)
+        binding.peopleRecycler.adapter = PersonAdapter(
+            personIds.indices.map { i -> PersonRow(personIds[i], counts.getOrElse(i) { 0 }) },
+        )
+
+        binding.saveButton.setOnClickListener { saveToGallery() }
+        binding.shareButton.setOnClickListener { shareCollage() }
+    }
+
+    private fun saveToGallery() {
+        val file = collageFile ?: return
+        lifecycleScope.launch {
+            val uri = withContext(Dispatchers.IO) {
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return@withContext null
+                CollageComposer.saveToGallery(this@ResultsActivity, bitmap, file.name)
+            }
+            Toast.makeText(
+                this@ResultsActivity,
+                if (uri != null) R.string.saved_to_gallery else R.string.save_failed,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    private fun shareCollage() {
+        val file = collageFile ?: return
+        val intent = CollageComposer.shareIntent(this, file)
+        startActivity(Intent.createChooser(intent, getString(R.string.share)))
+    }
+
+    companion object {
+        const val EXTRA_COLLAGE_PATH = "collage_path"
+        const val EXTRA_PERSON_IDS = "person_ids"
+        const val EXTRA_APPEARANCE_COUNTS = "appearance_counts"
+        const val EXTRA_TOTAL_APPEARANCES = "total_appearances"
+        const val EXTRA_THRESHOLD = "threshold"
     }
 }

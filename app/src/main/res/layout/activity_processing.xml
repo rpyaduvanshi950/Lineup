@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="@color/color_background">
 
-    <!-- ==================== Progress state ==================== -->
     <LinearLayout
         android:id="@+id/progressGroup"
         android:layout_width="0dp"
@@ -65,63 +64,6 @@
             android:textSize="13sp"
             android:textColor="@color/color_text_secondary"
             android:text="" />
-    </LinearLayout>
-
-    <!-- ==================== Results state ==================== -->
-    <LinearLayout
-        android:id="@+id/resultsGroup"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="24dp"
-            android:paddingTop="32dp"
-            android:paddingBottom="16dp">
-
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_check_circle"
-                android:contentDescription="@null" />
-
-            <TextView
-                android:id="@+id/resultsTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:textColor="@color/color_text_primary"
-                android:fontFamily="sans-serif-medium"
-                android:text="@string/results_title_format" />
-
-            <TextView
-                android:id="@+id/resultsSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="14sp"
-                android:textColor="@color/color_text_secondary"
-                android:text="@string/results_subtitle_format" />
-        </LinearLayout>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/peopleRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:paddingHorizontal="20dp"
-            android:paddingBottom="16dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
