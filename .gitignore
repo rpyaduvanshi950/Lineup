@@ -1,0 +1,18 @@
+# Android
+*.iml
+.gradle/
+/local.properties
+/.idea
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+
+# Provided test videos (not app source) -- see README for the Drive links
+/data/
+/data.zip
+
+# Local tooling state, not project source
+/.claude/
