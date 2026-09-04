@@ -17,14 +17,10 @@ research behind each tech choice.
 ## Build & setup
 
 1. Android Studio (or the CLI) with SDK platform 35 and build-tools ≥35, JDK 17.
-2. **Required, not yet bundled:** download the FaceNet embedding model and place it at
-   `app/src/main/assets/facenet.tflite`:
-   ```
-   curl -sL -o app/src/main/assets/facenet.tflite \
-     https://github.com/shubham0204/FaceRecognition_With_FaceNet_Android/raw/master/app/src/main/assets/facenet.tflite
-   ```
-3. `./gradlew :app:assembleDebug` — first run needs network to pull ML Kit / AndroidX / LiteRT.
-4. Install on a physical device (or emulator) and run. Live-camera capture is not implemented or
+2. `./gradlew :app:assembleDebug` — first run needs network to pull ML Kit / AndroidX / LiteRT.
+   `app/src/main/assets/facenet.tflite` (the FaceNet embedding model) is already bundled in
+   this repo.
+3. Install on a physical device or emulator and run. Live-camera capture is not implemented or
    required — pick an existing portrait video via the file picker.
 
 To run the instrumented checkpoint tests (need a connected device):
@@ -65,10 +61,24 @@ MAX_YAW = 45°` **before** embedding/clustering, not just before counting appear
 crop embeds to a near-random vector, and doing the filter late let one show up as a phantom extra
 "person."
 
+A `RESCUE_MERGE` second pass in `FaceClusterer` gives any leftover small (≤2-face) cluster one
+more chance to merge into its nearest real cluster at a lower `RESCUE_MERGE_THRESHOLD = 0.45`
+before it's counted as a standalone person — added after finding, on-device, that a single sharp
+frontal crop can still land below the main threshold against its own person purely from scale
+mismatch (a much closer framing than that person's other shots).
+
+## Verified on-device (emulator, real ML Kit + real FaceNet, threshold=0.6)
+
+| Sample | People found | Appearances | Per-person |
+|---|---|---|---|
+| 1 | **5** (matches ground truth) | 18/20 | [4,2,4,4,4] |
+| 2 | 7 | 21 | [3,4,4,4,4,1,1] |
+| 3 | 6 | 19 | [4,3,4,3,1,4] |
+
 ## Known deviations / open items
 
-- Detection was validated end-to-end on real device hardware for Step 1 only; the Step 2 sweep
-  above was cross-checked with a faithful desktop reproduction of the real clustering/segmentation
-  code (using the actual `facenet.tflite`) because a physical-device session wasn't available at
-  the time — re-verify the exact numbers via `Step2CheckpointTest` before relying on them.
+- Samples 2 and 3 still over-count people by 1–2. Traced to a shared two-face frame (sample 2,
+  ~10.1s): the 1.6× expanded embedding crop for each face likely bleeds into the neighboring
+  face, degrading both embeddings below even the rescue-merge threshold. Next fix: shrink or clip
+  the embedding crop when another detection's bbox is nearby, rather than a raw uniform expansion.
 - No landmark-based face alignment yet (MVP padded-bbox-crop only, per `BUILD_GUIDE.md` §3).
