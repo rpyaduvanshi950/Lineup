@@ -75,8 +75,10 @@ mismatch (a much closer framing than that person's other shots).
 | Sample | People found | Appearances | Per-person |
 |---|---|---|---|
 | 1 | **5** (matches ground truth) | 18/20 | [4,2,4,4,4] |
-| 2 | 7 | 21 | [3,4,4,4,4,1,1] |
-| 3 | 6 | 19 | [4,3,4,3,1,4] |
+| 2 | 7 | 22 | [4,4,4,4,4,1,1] |
+| 3 | 6 | 21 | [5,1,4,4,3,4] |
+
+(Single-run snapshot — see the run-to-run variance note below.)
 
 ## Step 3: representative shot + collage
 
@@ -98,9 +100,18 @@ save-to-gallery (`MediaStore.Images`) and share (`FileProvider` + `ACTION_SEND`)
 - Samples 2 and 3 still over-count people by 1–2 (see the on-device table above). Traced to a
   shared two-face frame (sample 2, ~10.1s): the 1.6× expanded *embedding* crop for each face
   likely bleeds into the neighboring face, degrading both embeddings below even the rescue-merge
-  threshold. `RepresentativeShotSelector`'s neighbor-clipping fix addresses this for the
-  *collage crop*; the same clipping has not yet been applied to the embedding crop in
-  `FaceEmbedder`, which is the actual fix needed for the identity-count issue.
+  threshold. **Tried and reverted:** applying the same neighbor-clipping used for the collage crop
+  to the embedding crop in `FaceEmbedder` — measured on-device, it made clustering *worse* (sample
+  1 went from 5 people/18 appearances to 8 people/20). Clipping shrinks/skews the crop for every
+  detection that merely shares a frame with someone else, and most of those weren't actually
+  bleeding into their neighbor; the resulting asymmetric crop hurt more embeddings than the bleed
+  itself did. The real fix is more targeted: only clip when the *unclipped* 1.6x rect would
+  actually overlap the neighbor's bbox, not whenever a neighbor merely exists in the frame.
+- Run-to-run variance was also noticeable on this emulator: identical code/video produced 186-210
+  raw detections across repeated runs (ML Kit accurate mode and/or `MediaMetadataRetriever`'s
+  decode timing aren't perfectly deterministic here), which shifts cluster/appearance counts by
+  a person or two between runs even with no code change. Treat single-run numbers as indicative,
+  not exact — re-run before trusting a specific count.
 - When a person's only available representative-shot candidates are all in a shared frame, the
   neighbor-clip can produce an unusually tight tile (verified on sample 1: one person's tile
   ended up mouth/chin-only) rather than the intended generous 2.5× crop. Better fix: re-center

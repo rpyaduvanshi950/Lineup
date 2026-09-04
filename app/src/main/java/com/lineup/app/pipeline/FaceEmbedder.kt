@@ -41,7 +41,17 @@ class FaceEmbedder(context: Context) : AutoCloseable {
         Interpreter(FileUtilCompat.loadMappedAsset(context, MODEL_ASSET))
     }
 
-    /** Crops [frame] generously around [detection]'s bbox, resizes, and embeds it. */
+    /**
+     * Crops [frame] generously around [detection]'s bbox, resizes, and embeds it.
+     *
+     * Tried clipping this crop against neighboring faces in shared frames (same idea as
+     * RepresentativeShotSelector's collage-tile fix) to address embedding degradation on
+     * shared-frame detections. Measured on-device it made clustering *worse* (sample 1 went
+     * from 5 people/18 appearances to 8 people/20) -- clipping shrinks/skews the crop for every
+     * detection that merely shares a frame with someone else, most of which weren't actually
+     * bleeding into their neighbor, and the resulting crop asymmetry hurt more embeddings than
+     * the bleed itself did. Reverted; see README's open items for what to try instead.
+     */
     suspend fun embed(frame: Bitmap, detection: FaceDetection): FloatArray = withContext(Dispatchers.Default) {
         val cropRect = ImageUtils.expandRect(
             detection.bbox, CROP_EXPAND_FACTOR, frame.width, frame.height,
