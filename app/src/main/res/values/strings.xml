@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">Lineup</string>
+    <string name="home_subtitle">Pick a portrait video and Lineup will find every unique person in it, entirely on your device.</string>
+    <string name="home_step_1">Samples frames and detects every face</string>
+    <string name="home_step_2">Tells people apart with on-device embeddings</string>
+    <string name="home_step_3">Groups appearances and counts each person</string>
+    <string name="select_video">Select video</string>
+
+    <string name="stage_extracting_frames">Extracting frames</string>
+    <string name="stage_detecting_faces">Detecting faces</string>
+    <string name="stage_embedding_faces">Identifying people</string>
+    <string name="stage_clustering">Grouping appearances</string>
+
+    <string name="results_title_format">%1$d people found</string>
+    <string name="results_subtitle_format">%1$d appearances in total · similarity threshold %2$s</string>
+    <string name="person_label_format">Person %1$d</string>
+    <string name="appearance_count_format">%1$d appearance(s)</string>
+    <string name="processing_failed">Something went wrong</string>
 </resources>

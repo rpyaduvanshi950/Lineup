@@ -1,4 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Style resources with a night qualifier do NOT merge with the unqualified version, so
+         this repeats every item; only windowLightStatusBar actually differs. -->
     <style name="Theme.Lineup" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/brand_primary</item>
         <item name="colorPrimaryDark">@color/brand_primary_dark</item>
@@ -6,7 +8,7 @@
         <item name="colorSecondary">@color/brand_accent</item>
         <item name="colorOnSecondary">@color/color_text_primary</item>
         <item name="android:statusBarColor">@color/color_background</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">@color/color_background</item>
         <item name="android:windowBackground">@color/color_background</item>
         <item name="colorSurface">@color/color_surface</item>

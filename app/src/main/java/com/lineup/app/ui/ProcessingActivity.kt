@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.lineup.app.R
 import com.lineup.app.data.ProcessingState
 import com.lineup.app.databinding.ActivityProcessingBinding
 import kotlinx.coroutines.launch
@@ -20,6 +22,8 @@ class ProcessingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityProcessingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.peopleRecycler.layoutManager = LinearLayoutManager(this)
 
         val uriStr = intent.getStringExtra(EXTRA_VIDEO_URI)
         if (uriStr == null) {
@@ -39,48 +43,69 @@ class ProcessingActivity : AppCompatActivity() {
     private fun render(state: ProcessingState) {
         when (state) {
             is ProcessingState.Idle -> Unit
+
             is ProcessingState.Running -> {
-                binding.stageLabel.text = state.stage.label
+                binding.progressGroup.visibility = android.view.View.VISIBLE
+                binding.resultsGroup.visibility = android.view.View.GONE
+                binding.stageIcon.setImageResource(iconFor(state.stage))
+                binding.stageLabel.setText(labelFor(state.stage))
                 binding.progressBar.isIndeterminate = state.total <= 0
                 if (state.total > 0) {
                     binding.progressBar.max = state.total
                     binding.progressBar.progress = state.done
                 }
-                binding.countLabel.text = "${state.done} / ${state.total}"
+                binding.countLabel.text = if (state.total > 0) "${state.done} / ${state.total}" else ""
             }
+
             is ProcessingState.Step1Complete -> {
-                val framesWithFaces = state.detections.map { it.frameIndex }.distinct().size
-                binding.stageLabel.text = "Step 1 complete"
+                // Superseded by Step2Complete in the normal flow; kept for the Step1-only
+                // checkpoint path. Show a minimal completed state.
+                binding.progressGroup.visibility = android.view.View.VISIBLE
+                binding.resultsGroup.visibility = android.view.View.GONE
+                binding.stageIcon.setImageResource(R.drawable.ic_check_circle)
+                binding.stageLabel.text = getString(R.string.stage_detecting_faces)
                 binding.progressBar.isIndeterminate = false
                 binding.progressBar.progress = binding.progressBar.max
-                binding.countLabel.text = buildString {
-                    appendLine("Frames extracted: ${state.frames.size}")
-                    appendLine("Face detections: ${state.detections.size}")
-                    appendLine("Frames with >=1 face: $framesWithFaces")
-                    val multi = state.detections
-                        .groupingBy { it.frameIndex }.eachCount()
-                        .count { it.value >= 2 }
-                    appendLine("Frames with >=2 faces: $multi")
-                }
+                binding.countLabel.text =
+                    "${state.frames.size} frames, ${state.detections.size} detections"
             }
+
             is ProcessingState.Step2Complete -> {
-                binding.stageLabel.text = "${state.clusters.size} people found"
-                binding.progressBar.isIndeterminate = false
-                binding.progressBar.progress = binding.progressBar.max
-                binding.countLabel.text = buildString {
-                    appendLine("Similarity threshold: ${state.similarityThreshold}")
-                    appendLine("People found: ${state.clusters.size}")
-                    appendLine("Total appearances: ${state.appearances.size}")
-                    for ((personId, count) in state.appearanceCounts) {
-                        appendLine("  person $personId: $count appearance(s)")
-                    }
-                }
+                binding.progressGroup.visibility = android.view.View.GONE
+                binding.resultsGroup.visibility = android.view.View.VISIBLE
+                binding.resultsTitle.text =
+                    getString(R.string.results_title_format, state.clusters.size)
+                binding.resultsSubtitle.text = getString(
+                    R.string.results_subtitle_format,
+                    state.appearances.size,
+                    "%.2f".format(state.similarityThreshold),
+                )
+                val rows = state.appearanceCounts.map { (id, count) -> PersonRow(id, count) }
+                binding.peopleRecycler.adapter = PersonAdapter(rows)
             }
+
             is ProcessingState.Failed -> {
-                binding.stageLabel.text = "Failed"
+                binding.progressGroup.visibility = android.view.View.VISIBLE
+                binding.resultsGroup.visibility = android.view.View.GONE
+                binding.stageLabel.text = getString(R.string.processing_failed)
+                binding.progressBar.isIndeterminate = false
                 binding.countLabel.text = state.message
             }
         }
+    }
+
+    private fun iconFor(stage: ProcessingState.Stage) = when (stage) {
+        ProcessingState.Stage.EXTRACTING_FRAMES -> R.drawable.ic_stage_frames
+        ProcessingState.Stage.DETECTING_FACES -> R.drawable.ic_stage_face
+        ProcessingState.Stage.EMBEDDING_FACES -> R.drawable.ic_stage_identify
+        ProcessingState.Stage.CLUSTERING -> R.drawable.ic_stage_cluster
+    }
+
+    private fun labelFor(stage: ProcessingState.Stage) = when (stage) {
+        ProcessingState.Stage.EXTRACTING_FRAMES -> R.string.stage_extracting_frames
+        ProcessingState.Stage.DETECTING_FACES -> R.string.stage_detecting_faces
+        ProcessingState.Stage.EMBEDDING_FACES -> R.string.stage_embedding_faces
+        ProcessingState.Stage.CLUSTERING -> R.string.stage_clustering
     }
 
     companion object {

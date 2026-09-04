@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_card"
+    android:layout_marginBottom="12dp"
+    android:padding="16dp">
+
+    <FrameLayout
+        android:id="@+id/avatarFrame"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_avatar_circle">
+
+        <TextView
+            android:id="@+id/avatarInitial"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:text="1" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/personLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="16dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/color_text_primary"
+        android:text="@string/person_label_format" />
+
+    <TextView
+        android:id="@+id/appearanceCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_pill"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="6dp"
+        android:textSize="13sp"
+        android:textColor="@color/color_text_primary"
+        android:text="@string/appearance_count_format" />
+
+</LinearLayout>
