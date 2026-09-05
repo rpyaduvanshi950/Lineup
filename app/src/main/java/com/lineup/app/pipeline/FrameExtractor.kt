@@ -26,7 +26,7 @@ class FrameExtractor(private val context: Context) {
 
     suspend fun extract(
         uri: Uri,
-        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+        onProgress: (done: Int, total: Int, framePath: String?) -> Unit = { _, _, _ -> },
     ): List<FrameRef> = withContext(Dispatchers.IO) {
         val framesDir = File(context.cacheDir, "frames").apply {
             deleteRecursively()
@@ -55,6 +55,7 @@ class FrameExtractor(private val context: Context) {
                 val bmp: Bitmap? = retriever.getFrameAtTime(
                     tUs, MediaMetadataRetriever.OPTION_CLOSEST,
                 )
+                var justWrittenPath: String? = null
                 if (bmp != null) {
                     val file = File(framesDir, "frame_%05d.jpg".format(index))
                     FileOutputStream(file).use { out ->
@@ -69,10 +70,11 @@ class FrameExtractor(private val context: Context) {
                             height = bmp.height,
                         ),
                     )
+                    justWrittenPath = file.absolutePath
                     bmp.recycle()
                 }
                 index++
-                onProgress(index, total)
+                onProgress(index, total, justWrittenPath)
                 if (durationUs <= 0) break
                 tUs += SAMPLE_INTERVAL_MS * 1000
             }

@@ -6,64 +6,137 @@
     android:layout_height="match_parent"
     android:background="@color/color_background">
 
-    <LinearLayout
-        android:id="@+id/progressGroup"
+    <!-- Blurred preview of the frame currently being processed, for cinematic context.
+         GONE until the first frame lands; the scrim above it guarantees legible text either way. -->
+    <ImageView
+        android:id="@+id/previewImage"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:background="@drawable/bg_card"
-        android:padding="28dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:importantForAccessibility="no"
+        android:contentDescription="@string/cd_preview_frame"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <View
+        android:id="@+id/scrim"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/bg_scrim"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ============ Stepper: Extract -> Detect -> Embed -> Cluster -> Compose ============ -->
+    <View
+        android:id="@+id/stepperLine"
+        android:layout_width="0dp"
+        android:layout_height="2dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="36dp"
+        android:layout_marginEnd="36dp"
+        android:background="@color/color_divider"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toTopOf="@id/stepperRow"
+        app:layout_constraintStart_toStartOf="@id/stepperRow"
+        app:layout_constraintEnd_toEndOf="@id/stepperRow" />
+
+    <LinearLayout
+        android:id="@+id/stepperRow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="56dp"
+        android:layout_marginHorizontal="16dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <FrameLayout
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:background="@drawable/bg_stage_icon">
-
-            <ImageView
-                android:id="@+id/stageIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_stage_frames"
-                android:contentDescription="@null" />
-        </FrameLayout>
-
-        <TextView
-            android:id="@+id/stageLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:textSize="19sp"
-            android:textStyle="bold"
-            android:textColor="@color/color_text_primary"
-            android:fontFamily="sans-serif-medium"
-            android:text="@string/stage_extracting_frames" />
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="8dp"
-            android:layout_marginTop="20dp"
-            android:progressDrawable="@drawable/progress_bar_horizontal"
-            android:indeterminate="true" />
-
-        <TextView
-            android:id="@+id/countLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:fontFamily="monospace"
-            android:textSize="13sp"
-            android:textColor="@color/color_text_secondary"
-            android:text="" />
+        <include layout="@layout/item_stepper_node" android:id="@+id/step1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        <include layout="@layout/item_stepper_node" android:id="@+id/step2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        <include layout="@layout/item_stepper_node" android:id="@+id/step3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        <include layout="@layout/item_stepper_node" android:id="@+id/step4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        <include layout="@layout/item_stepper_node" android:id="@+id/step5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
     </LinearLayout>
+
+    <!-- ============ Center stage: big progress ring + hero counter ============ -->
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:id="@+id/progressRing"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:indeterminate="false"
+        app:trackThickness="10dp"
+        app:trackColor="@color/color_surface_alt"
+        app:indicatorColor="@color/accent_amber"
+        app:trackCornerRadius="8dp"
+        app:indicatorSize="220dp"
+        app:layout_constraintTop_toBottomOf="@id/stepperRow"
+        app:layout_constraintBottom_toTopOf="@id/stageLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.5" />
+
+    <LinearLayout
+        android:id="@+id/counterGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        app:layout_constraintTop_toTopOf="@id/progressRing"
+        app:layout_constraintBottom_toBottomOf="@id/progressRing"
+        app:layout_constraintStart_toStartOf="@id/progressRing"
+        app:layout_constraintEnd_toEndOf="@id/progressRing">
+
+        <TextView
+            android:id="@+id/peopleCounter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textAppearance="@style/TextAppearance.Lineup.Display"
+            android:textSize="56sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:text="@string/people_found_so_far"
+            android:textAppearance="@style/TextAppearance.Lineup.Body"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/stageLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.Lineup.Title"
+        android:textSize="19sp"
+        android:accessibilityLiveRegion="polite"
+        android:text="@string/stage_extracting_frames"
+        app:layout_constraintBottom_toTopOf="@id/countLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/countLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="48dp"
+        android:gravity="center"
+        android:fontFamily="monospace"
+        android:textSize="12sp"
+        android:textColor="@color/color_text_secondary"
+        android:text=""
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,6 @@
+<resources>
+    <array name="preloaded_fonts">
+        <item>@font/manrope</item>
+        <item>@font/manrope_extrabold</item>
+    </array>
+</resources>

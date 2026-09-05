@@ -14,6 +14,9 @@ sealed class ProcessingState {
         val done: Int,
         val total: Int,
         val peopleFound: Int = 0,
+        /** File path of the most recently touched frame, for the Processing screen's blurred
+         * background preview. Null before the first frame lands. */
+        val previewFramePath: String? = null,
     ) : ProcessingState() {
         val fraction: Float get() = if (total <= 0) 0f else done.toFloat() / total
     }
@@ -42,6 +45,9 @@ sealed class ProcessingState {
         val appearances: List<Appearance>,
         val similarityThreshold: Float,
         val collageFilePath: String,
+        /** personId -> cached file path of that person's representative-shot crop, used for
+         * the results screen's circular avatar-chip strip. */
+        val avatarPaths: Map<Int, String> = emptyMap(),
     ) : ProcessingState() {
         val appearanceCounts: List<Pair<Int, Int>>
             get() = clusters.map { c -> c.id to appearances.count { it.personId == c.id } }

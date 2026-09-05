@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Downloadable Google Fonts provider (com.google.android.gms.fonts): no font files bundled
+     in the APK. Falls back to the system default sans-serif if the on-device Fonts provider
+     can't resolve it (offline first run, no Play Services); never crashes either way. -->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="Manrope"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

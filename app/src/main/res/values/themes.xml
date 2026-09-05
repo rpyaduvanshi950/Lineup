@@ -1,17 +1,36 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.Lineup" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/brand_primary</item>
-        <item name="colorPrimaryDark">@color/brand_primary_dark</item>
-        <item name="colorOnPrimary">@color/brand_on_primary</item>
-        <item name="colorSecondary">@color/brand_accent</item>
-        <item name="colorOnSecondary">@color/color_text_primary</item>
+    <!-- Cinematic photo-booth identity: one deliberate dark theme, not a day/night pair.
+         Parent is stable Material3 Dark (not DayNight, not the 1.14.0-alpha Expressive line). -->
+    <style name="Theme.Lineup" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_amber</item>
+        <item name="colorOnPrimary">@color/color_on_amber</item>
+        <item name="colorPrimaryContainer">@color/accent_amber_dim</item>
+        <item name="colorOnPrimaryContainer">@color/color_on_amber</item>
+        <item name="colorSecondary">@color/accent_coral</item>
+        <item name="colorOnSecondary">@color/color_on_amber</item>
+
         <item name="android:statusBarColor">@color/color_background</item>
-        <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@color/color_background</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowBackground">@color/color_background</item>
+
         <item name="colorSurface">@color/color_surface</item>
         <item name="colorOnSurface">@color/color_text_primary</item>
+        <item name="colorOutline">@color/color_divider</item>
+
         <item name="android:textColorPrimary">@color/color_text_primary</item>
         <item name="android:textColorSecondary">@color/color_text_secondary</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="fontFamily">@font/manrope</item>
+
+        <!-- Real Android Transition APIs drive screen-to-screen motion: a plain content
+             fade instead of the default abrupt window-slide cut. -->
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowEnterTransition">@transition/fade</item>
+        <item name="android:windowExitTransition">@transition/fade</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
     </style>
+
 </resources>

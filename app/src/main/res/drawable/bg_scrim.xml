@@ -1,0 +1,5 @@
+<!-- Dark scrim over the blurred preview frame: keeps WCAG-AA contrast for the text/progress
+     content on top of it regardless of what the underlying photo looks like. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#CC121212"/>
+</shape>

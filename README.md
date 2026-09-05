@@ -19,15 +19,48 @@ research behind each tech choice.
 
 ## Demo
 
-`docs/demo.mp4` (35s, emulator recording): the real app, real pipeline, real UI — picking
-Sample 1 through the actual system file picker, then processing → results for all three
-samples. It's an editorial cut (jump cuts between samples, title cards reused from a real
-processing screenshot to bridge them) rather than one continuous take, because capturing three
-full ~60-90s on-device runs back-to-back exceeds what a single `adb screenrecord` invocation can
-hold — the *submission* recording should be a real, unedited screen capture on your own device
-(the flow itself needs no editing to look good, per the assignment). Screenshots of each screen
-are also in `docs/` (`screenshot_home.png`, `screenshot_processing.png`, `screenshot_collage.png`
-+ `_scrolled.png`).
+**`docs/demo.mp4` predates the visual redesign below** — it still shows the earlier
+purple/light UI, not the current cinematic dark theme. Re-record before submission. It's also
+an editorial cut (jump cuts between samples, title cards bridging them) rather than one
+continuous take, since three full on-device runs back-to-back exceed a single `adb screenrecord`
+invocation’s cap — the actual submission recording should be a real, unedited capture on your
+own device (the flow needs no editing to look good, per the assignment).
+
+Screenshots in `docs/` (`screenshot_home.png`, `screenshot_processing.png`,
+`screenshot_results.png`, `screenshot_avatars.png`) **are current** — taken after the redesign
+below.
+
+## Visual design
+
+Cinematic photo-booth identity, not default Material colors: near-black charcoal background
+(`#121212`), warm amber primary (`#F2B84B`), muted coral secondary (`#FF6B5B`), Manrope
+(ExtraBold for headlines/the big display numerals, via a downloadable Google Fonts provider —
+`res/font/manrope*.xml` + `res/values/font_certs.xml`) over the system default for body text.
+Built with stable `com.google.android.material:material:1.12.0` (Material 3, not the 1.14.0-alpha
+Expressive components) + ConstraintLayout throughout, plus Android's Transition APIs
+(`android:windowEnterTransition`/`ExitTransition` = `Fade`, see `themes.xml` and
+`res/transition/fade.xml`) for screen-to-screen motion instead of the default abrupt cut.
+
+- **VideoSelect**: scattered rotated decorative "polaroid" cards behind a glowing pill CTA,
+  foreshadowing the collage output.
+- **Processing**: a 5-node stepper (Extract→Detect→Embed→Cluster→Compose) that lights up amber
+  per stage, a big circular progress ring, a Manrope-ExtraBold hero counter that animates
+  (`ValueAnimator`) from 0 to the real cluster count the moment clustering resolves, friendly
+  per-stage microcopy, and a live blurred preview of the frame currently being processed
+  (cheap downscale-then-upscale blur, decoded off the main thread) behind a dark scrim for
+  contrast.
+- **Results**: the collage as a full-bleed "physical photo card" (elevated card mat + shadow),
+  a native Manrope-ExtraBold count header, a horizontally scrollable strip of circular avatar
+  chips — each the person's *actual* representative-shot crop, not a placeholder — with an amber
+  appearance-count badge, and a pinned Save/Share action bar.
+
+Accessibility: decorative views (`polaroidA/B/C`, the button glow, the blurred preview) are
+marked `importantForAccessibility="no"`; the stage label uses `accessibilityLiveRegion="polite"`
+so TalkBack announces stage changes; the results screen calls `announceForAccessibility` once
+settled; touch targets are ≥48dp; text/icon colors were chosen for WCAG-AA contrast against both
+the dark canvas and the amber fill (near-black text/icons on amber, per `color_on_amber`).
+Layouts use ConstraintLayout guidelines/percentage dimensions rather than fixed device-specific
+values.
 
 ## Build & setup
 

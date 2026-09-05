@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window-level content transition (android.transition.Fade) used for screen-to-screen
+     motion between the 3 activities, per the design brief: a soft crossfade instead of the
+     default abrupt slide/cut. -->
+<fade xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="280" />

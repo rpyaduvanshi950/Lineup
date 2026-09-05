@@ -6,7 +6,7 @@ import android.net.Uri
 import android.util.Log
 import com.lineup.app.model.EmbeddedFace
 import com.lineup.app.model.FaceDetection
-import com.lineup.app.model.RepresentativeShot
+import com.lineup.app.model.PersonCluster
 import com.lineup.app.pipeline.AppearanceSegmenter
 import com.lineup.app.pipeline.CollageComposer
 import com.lineup.app.pipeline.FaceClusterer
@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -34,18 +35,22 @@ class VideoRepository(private val context: Context) {
 
     private val frameExtractor = FrameExtractor(context)
 
-    /** Full pipeline: Step 1 (ingest & detect) followed by Step 2 (identify). */
+    /** Full pipeline: Step 1 (ingest & detect) followed by Step 2 (identify) and Step 3 (compose). */
     suspend fun run(uri: Uri, similarityThreshold: Float = FaceClusterer.CLUSTER_SIMILARITY_THRESHOLD) {
         val detector = FaceDetectorWrapper()
         try {
             _state.value = ProcessingState.Running(ProcessingState.Stage.EXTRACTING_FRAMES, 0, 0)
-            val frames = frameExtractor.extract(uri) { done, total ->
-                _state.value = ProcessingState.Running(ProcessingState.Stage.EXTRACTING_FRAMES, done, total)
+            val frames = frameExtractor.extract(uri) { done, total, framePath ->
+                _state.value = ProcessingState.Running(
+                    ProcessingState.Stage.EXTRACTING_FRAMES, done, total, previewFramePath = framePath,
+                )
             }
 
             _state.value = ProcessingState.Running(ProcessingState.Stage.DETECTING_FACES, 0, frames.size)
-            val detections = detector.detectAll(frames) { done, total ->
-                _state.value = ProcessingState.Running(ProcessingState.Stage.DETECTING_FACES, done, total)
+            val detections = detector.detectAll(frames) { done, total, framePath ->
+                _state.value = ProcessingState.Running(
+                    ProcessingState.Stage.DETECTING_FACES, done, total, previewFramePath = framePath,
+                )
             }
             Log.i(TAG, "Step 1 done: ${frames.size} frames, ${detections.size} detections")
 
@@ -98,14 +103,22 @@ class VideoRepository(private val context: Context) {
                     "(threshold=$similarityThreshold) -> " +
                     clusters.joinToString { c -> "person${c.id}=${appearances.count { it.personId == c.id }}" },
             )
+            // The big "X people found" counter on the Processing screen becomes meaningful
+            // exactly here -- clustering resolves all at once (not incrementally), so this is
+            // the moment the UI animates its count-up from 0 to the real number.
+            _state.value = ProcessingState.Running(
+                ProcessingState.Stage.CLUSTERING, 1, 1, peopleFound = clusters.size,
+            )
             _state.value = ProcessingState.Step2Complete(frames, clusters, appearances, similarityThreshold)
 
-            _state.value = ProcessingState.Running(ProcessingState.Stage.COMPOSING, 0, 1)
+            _state.value = ProcessingState.Running(
+                ProcessingState.Stage.COMPOSING, 0, 1, peopleFound = clusters.size,
+            )
             val detectionsByFrame = usableDetections.groupBy { it.framePath }
-            val collageFile = composeCollage(clusters, detectionsByFrame)
+            val (collageFile, avatarPaths) = composeCollage(clusters, detectionsByFrame)
             Log.i(TAG, "Step 3 done: collage written to ${collageFile.absolutePath}")
             _state.value = ProcessingState.Step3Complete(
-                clusters, appearances, similarityThreshold, collageFile.absolutePath,
+                clusters, appearances, similarityThreshold, collageFile.absolutePath, avatarPaths,
             )
         } catch (t: Throwable) {
             Log.e(TAG, "Pipeline failed", t)
@@ -120,13 +133,17 @@ class VideoRepository(private val context: Context) {
         val detector = FaceDetectorWrapper()
         try {
             _state.value = ProcessingState.Running(ProcessingState.Stage.EXTRACTING_FRAMES, 0, 0)
-            val frames = frameExtractor.extract(uri) { done, total ->
-                _state.value = ProcessingState.Running(ProcessingState.Stage.EXTRACTING_FRAMES, done, total)
+            val frames = frameExtractor.extract(uri) { done, total, framePath ->
+                _state.value = ProcessingState.Running(
+                    ProcessingState.Stage.EXTRACTING_FRAMES, done, total, previewFramePath = framePath,
+                )
             }
 
             _state.value = ProcessingState.Running(ProcessingState.Stage.DETECTING_FACES, 0, frames.size)
-            val detections = detector.detectAll(frames) { done, total ->
-                _state.value = ProcessingState.Running(ProcessingState.Stage.DETECTING_FACES, done, total)
+            val detections = detector.detectAll(frames) { done, total, framePath ->
+                _state.value = ProcessingState.Running(
+                    ProcessingState.Stage.DETECTING_FACES, done, total, previewFramePath = framePath,
+                )
             }
 
             Log.i(TAG, "Step 1 done: ${frames.size} frames extracted, ${detections.size} face detections")
@@ -174,27 +191,40 @@ class VideoRepository(private val context: Context) {
 
     /**
      * Picks one representative shot per person, crops it generously (never a tight face
-     * bbox) from the full-resolution source frame, composes the grid collage, and caches it
-     * to disk so it can hand off to ResultsActivity by file path.
+     * bbox) from the full-resolution source frame, composes the grid collage, and caches
+     * both the collage and each person's individual crop (for the results screen's avatar
+     * chips) to disk so they can hand off to ResultsActivity by file path.
+     *
+     * Builds (personId, croppedBitmap) pairs in a single pass rather than two separate
+     * mapNotNull chains -- with two chains, a dropped shot/crop silently shifts every later
+     * index out of alignment with `clusters`, which would attribute the wrong crop to the
+     * wrong personId.
      */
     private suspend fun composeCollage(
-        clusters: List<com.lineup.app.model.PersonCluster>,
+        clusters: List<PersonCluster>,
         detectionsByFrame: Map<String, List<FaceDetection>>,
-    ): java.io.File = withContext(Dispatchers.Default) {
+    ): Pair<File, Map<Int, String>> = withContext(Dispatchers.Default) {
         val selector = RepresentativeShotSelector()
-        val shots: List<RepresentativeShot> = clusters.mapNotNull { selector.select(it, detectionsByFrame) }
 
         // Not recycling these decoded frames: there are only as many as there are people (a
         // handful), and cropBitmap can alias the source bitmap itself (see FaceEmbedder's fix)
         // when a rect fills the whole frame, so recycling here isn't safe to do blindly anyway.
-        val tiles = shots.mapNotNull { shot ->
+        val personTiles: List<Pair<Int, android.graphics.Bitmap>> = clusters.mapNotNull { cluster ->
             coroutineContext.ensureActive()
+            val shot = selector.select(cluster, detectionsByFrame) ?: return@mapNotNull null
             val frame = BitmapFactory.decodeFile(shot.framePath) ?: return@mapNotNull null
-            ImageUtils.cropBitmap(frame, shot.cropRect)
+            val crop = ImageUtils.cropBitmap(frame, shot.cropRect) ?: return@mapNotNull null
+            cluster.id to crop
         }
 
-        val collage = CollageComposer.compose(tiles)
-        CollageComposer.writeToShareCache(context, collage, "collage_${System.currentTimeMillis()}.png")
+        val collage = CollageComposer.compose(personTiles.map { it.second })
+        val collageFile = CollageComposer.writeToShareCache(
+            context, collage, "collage_${System.currentTimeMillis()}.png",
+        )
+        val avatarPaths = personTiles.associate { (personId, bitmap) ->
+            personId to CollageComposer.writeToShareCache(context, bitmap, "avatar_$personId.png").absolutePath
+        }
+        collageFile to avatarPaths
     }
 
     fun reset() {

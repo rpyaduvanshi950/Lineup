@@ -29,6 +29,7 @@ class VideoSelectActivity : AppCompatActivity() {
         binding = ActivityVideoSelectBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.selectButton.applyPressScale()
         binding.selectButton.setOnClickListener {
             picker.launch(arrayOf("video/*"))
         }

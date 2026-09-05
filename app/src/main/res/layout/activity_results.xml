@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/color_background">
@@ -9,6 +10,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipToPadding="false"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/actionBar"
         app:layout_constraintStart_toStartOf="parent"
@@ -18,33 +20,69 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="16dp">
+            android:paddingBottom="20dp">
 
-            <ImageView
-                android:id="@+id/collageImage"
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/resultsCount"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
-                android:scaleType="fitCenter"
-                android:contentDescription="@null" />
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="28dp"
+                android:textAppearance="@style/TextAppearance.Lineup.Display"
+                android:textSize="64sp"
+                android:textColor="@color/accent_amber"
+                tools:text="5" />
+
+            <TextView
+                android:id="@+id/resultsCaption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="-6dp"
+                android:textAppearance="@style/TextAppearance.Lineup.Title"
+                android:textSize="18sp"
+                android:text="@string/people_found_so_far" />
 
             <TextView
                 android:id="@+id/resultsSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:layout_marginTop="16dp"
-                android:textSize="14sp"
-                android:textColor="@color/color_text_secondary"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="6dp"
+                android:textAppearance="@style/TextAppearance.Lineup.Body"
+                android:textSize="13sp"
                 android:text="@string/results_subtitle_format" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/peopleRecycler"
+            <!-- Hero collage, "treated like a physical photo card": surface-colored mat
+                 with elevation standing in for a drop shadow/frame around the print. -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/bg_card"
+                android:elevation="10dp"
+                android:padding="10dp">
+
+                <ImageView
+                    android:id="@+id/collageImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@string/cd_collage" />
+            </FrameLayout>
+
+            <!-- Horizontally scrollable avatar-chip strip, one per person. -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/avatarRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:clipToPadding="false"
                 android:paddingHorizontal="20dp"
-                android:paddingTop="12dp" />
+                android:orientation="horizontal"
+                tools:listitem="@layout/item_avatar_chip" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -56,31 +94,36 @@
         android:orientation="horizontal"
         android:background="@color/color_surface"
         android:padding="16dp"
-        android:elevation="8dp"
+        android:elevation="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:id="@+id/shareButton"
+            style="@style/Widget.Lineup.Button.Outline"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="@string/save_to_gallery"
-            android:textAllCaps="false"
-            app:cornerRadius="26dp" />
+            android:minHeight="48dp"
+            android:text="@string/share"
+            app:icon="@drawable/ic_share"
+            app:iconSize="18dp"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/shareButton"
+            android:id="@+id/saveButton"
+            style="@style/Widget.Lineup.Button.Amber"
             android:layout_width="0dp"
             android:layout_height="52dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="@string/share"
-            android:textAllCaps="false"
-            app:cornerRadius="26dp" />
+            android:minHeight="48dp"
+            android:text="@string/save_to_gallery"
+            app:icon="@drawable/ic_save"
+            app:iconSize="18dp"
+            app:iconGravity="textStart" />
 
     </LinearLayout>
 

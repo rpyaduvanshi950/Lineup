@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="14dp"
+    android:paddingBottom="4dp"
+    android:paddingEnd="4dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/avatarImage"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_avatar_circle"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Lineup.Pill"
+        app:strokeColor="@color/color_divider"
+        app:strokeWidth="1.5dp" />
+
+    <TextView
+        android:id="@+id/appearanceBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:minWidth="22dp"
+        android:minHeight="22dp"
+        android:gravity="center"
+        android:paddingHorizontal="5dp"
+        android:background="@drawable/bg_count_badge"
+        android:textColor="@color/color_on_amber"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/manrope"
+        tools:text="4" />
+
+</FrameLayout>

@@ -1,25 +1,31 @@
 <resources>
     <string name="app_name">Lineup</string>
+
+    <!-- Screen 1: VideoSelect -->
+    <string name="home_headline">Who\'s in your video?</string>
     <string name="home_subtitle">Pick a portrait video and Lineup will find every unique person in it, entirely on your device.</string>
-    <string name="home_step_1">Samples frames and detects every face</string>
-    <string name="home_step_2">Tells people apart with on-device embeddings</string>
-    <string name="home_step_3">Groups appearances and counts each person</string>
-    <string name="select_video">Select video</string>
+    <string name="select_video">Choose video</string>
 
-    <string name="stage_extracting_frames">Extracting frames</string>
-    <string name="stage_detecting_faces">Detecting faces</string>
-    <string name="stage_embedding_faces">Identifying people</string>
-    <string name="stage_clustering">Grouping appearances</string>
-    <string name="stage_composing">Composing collage</string>
+    <!-- Screen 2: Processing: friendly microcopy per stage, not raw enum names -->
+    <string name="stage_extracting_frames">Scanning your video…</string>
+    <string name="stage_detecting_faces">Scanning faces…</string>
+    <string name="stage_embedding_faces">Learning what makes everyone unique…</string>
+    <string name="stage_clustering">Figuring out who\'s who…</string>
+    <string name="stage_composing">Putting the lineup together…</string>
+    <string name="people_found_so_far">people found so far</string>
+    <string name="cd_stage_icon_format">Stage: %1$s</string>
+    <string name="cd_preview_frame">Blurred preview of the frame currently being processed</string>
+    <string name="a11y_progress_announcement">%1$s, %2$d of %3$d</string>
 
+    <!-- Screen 3: Results -->
     <string name="save_to_gallery">Save</string>
     <string name="share">Share</string>
     <string name="saved_to_gallery">Saved to gallery</string>
     <string name="save_failed">Couldn\'t save the collage</string>
-
-    <string name="results_title_format">%1$d people found</string>
     <string name="results_subtitle_format">%1$d appearances in total · similarity threshold %2$s</string>
     <string name="person_label_format">Person %1$d</string>
-    <string name="appearance_count_format">%1$d appearance(s)</string>
+    <string name="appearance_count_format">%1$d</string>
+    <string name="cd_avatar_format">Person %1$d, %2$d appearance(s)</string>
+    <string name="cd_collage">The finished collage of everyone found in your video</string>
     <string name="processing_failed">Something went wrong</string>
 </resources>

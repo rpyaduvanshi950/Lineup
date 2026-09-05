@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manrope ExtraBold (800): used for the big display numerals and headlines, the "hero
+     content" per the design brief. Same downloadable-provider setup as manrope.xml. -->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="name=Manrope&amp;weight=800"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

@@ -30,13 +30,13 @@ class FaceDetectorWrapper {
 
     suspend fun detectAll(
         frames: List<FrameRef>,
-        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+        onProgress: (done: Int, total: Int, framePath: String) -> Unit = { _, _, _ -> },
     ): List<FaceDetection> = withContext(Dispatchers.Default) {
         val out = ArrayList<FaceDetection>()
         frames.forEachIndexed { i, frame ->
             coroutineContext.ensureActive()
             val bitmap = BitmapFactory.decodeFile(frame.path) ?: run {
-                onProgress(i + 1, frames.size)
+                onProgress(i + 1, frames.size, frame.path)
                 return@forEachIndexed
             }
             try {
@@ -70,7 +70,7 @@ class FaceDetectorWrapper {
             } finally {
                 bitmap.recycle()
             }
-            onProgress(i + 1, frames.size)
+            onProgress(i + 1, frames.size, frame.path)
         }
         out
     }

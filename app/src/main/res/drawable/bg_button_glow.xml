@@ -1,0 +1,8 @@
+<!-- Soft amber glow placed behind the primary CTA. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="180dp"
+        android:centerColor="#66F2B84B"
+        android:endColor="#00F2B84B" />
+</shape>
