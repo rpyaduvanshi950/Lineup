@@ -76,6 +76,10 @@ class VideoRepository(private val context: Context) {
             }
 
             _state.value = ProcessingState.Running(ProcessingState.Stage.CLUSTERING, 0, 1)
+            // NB: tried track-averaged clustering (group by ML Kit trackingId, cluster the track
+            // means). Measured on-device it collapsed everyone together -- ML Kit's tracking
+            // isn't shot-boundary aware and this footage is all hard cuts, so a "track" spans
+            // multiple people framed similarly across a cut. Reverted; per-frame clustering it is.
             val clusters = FaceClusterer(similarityThreshold).cluster(embedded)
             val segmenter = AppearanceSegmenter()
             val appearances = clusters.flatMap { segmenter.segment(it) }
@@ -95,6 +99,15 @@ class VideoRepository(private val context: Context) {
                             },
                     )
                 }
+            }
+
+            // Proof this is real per-identity tracking, not a shared scene-cut counter:
+            // each person's own appearance timestamp windows, independent of everyone else's.
+            for (c in clusters) {
+                val windows = appearances.filter { it.personId == c.id }
+                    .sortedBy { it.startMs }
+                    .joinToString { "%.1f-%.1fs".format(it.startMs / 1000.0, it.endMs / 1000.0) }
+                Log.i(TAG, "person${c.id} windows: $windows")
             }
 
             Log.i(
