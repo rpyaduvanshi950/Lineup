@@ -124,10 +124,21 @@ mismatch (a much closer framing than that person's other shots).
 | 2 | **5** (matches ground truth) | 19/20 | [4,3,4,4,4] |
 | 3 | **5** (matches ground truth) | **20/20** | [4,4,4,4,4] |
 
-Ground truth for all three clips is 5 people × 4 appearances each. The prior FaceNet-only build
-over-counted samples 2 and 3 by 1–2 people; ArcFace embeddings on landmark-aligned faces fixed
-that. (Single-run snapshot — the emulator has some run-to-run variance in detection count; the
-people count has been stable at 5 across runs.)
+Ground truth for all three clips is 5 people × 4 appearances each.
+
+### Before / after landmark alignment + ArcFace
+
+| Sample | FaceNet, unaligned crop (τ=0.6) | MobileFaceNet + 5-point alignment (τ=0.45) |
+|---|---|---|
+| 1 | 5 people, 18/20 appearances | 5 people, 19/20 |
+| 2 | **7 people**, 22 appearances | **5 people**, 19/20 |
+| 3 | **6 people**, 21 appearances | **5 people**, 20/20 |
+
+The prior FaceNet-only build was fed unaligned padded crops and over-counted samples 2 and 3 by
+1–2 people (phantom clusters spun off the shared-frame moments). Fitting the 5 ML Kit landmarks
+to the canonical template before embedding, plus an ArcFace-trained model, fixed the people count
+on all three. (Single-run snapshot — the emulator has some run-to-run variance in detection
+count; the people count has been stable at 5 across runs.)
 
 ## Step 3: representative shot + collage
 
