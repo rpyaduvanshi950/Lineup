@@ -80,6 +80,10 @@ class VideoRepository(private val context: Context) {
             // means). Measured on-device it collapsed everyone together -- ML Kit's tracking
             // isn't shot-boundary aware and this footage is all hard cuts, so a "track" spans
             // multiple people framed similarly across a cut. Reverted; per-frame clustering it is.
+
+            // Threshold was picked by sweeping tau in one run against the 3 sample clips' known
+            // counts (MobileFaceNet + 5-point alignment): people count is flat at the correct 5
+            // across tau = 0.45..0.55 on all three, so 0.45 sits mid-plateau. See README.
             val clusters = FaceClusterer(similarityThreshold).cluster(embedded)
             val segmenter = AppearanceSegmenter()
             val appearances = clusters.flatMap { segmenter.segment(it) }

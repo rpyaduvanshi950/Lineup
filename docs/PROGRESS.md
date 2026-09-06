@@ -33,13 +33,24 @@ person4: 3.5-4.6s   13.4-14.8s  20.3-21.4s  25.2-26.4s   (4)
 - **Neighbor-clipping the embedding crop** on shared frames — clustering got worse (5→8 people). Clipping shrinks/skews the crop for every shared-frame detection, most of which weren't actually bleeding.
 - **Track-averaged clustering** (group per-frame faces by ML Kit `trackingId`, cluster the track means) — catastrophic: Sample 1 collapsed 5→2 people. ML Kit tracking isn't shot-boundary aware and this footage is all hard cuts, so a "track" spans multiple people framed similarly across a cut.
 
-## Next: ArcFace + 5-point alignment (in progress)
+## ArcFace + 5-point alignment — DONE, kept (improved accuracy)
 
-Rationale: FaceNet is fed **unaligned** padded crops, but it (and especially ArcFace models) are trained on faces aligned to canonical landmark positions. Expected to be the biggest single lever for the Samples 2/3 over-counting.
+Shipped:
+1. 5 ML Kit landmarks (spatially ordered) threaded through `FaceDetection.landmarks`.
+2. `FaceAligner` — closed-form 2D Procrustes similarity transform (scale+rotation+translation),
+   fits the 5 landmarks to the InsightFace canonical 112 template, warps via `android.graphics.Matrix`.
+3. `FaceEmbedder` rewritten with a `Model` enum; default `MOBILEFACENET` (`mobilefacenet.tflite`,
+   ArcFace-trained, 112×112 → 192-d, `(x−127.5)/128`, batch-2 input handled). Aligns via
+   `FaceAligner`, falls back to a padded bbox crop when <5 landmarks.
+4. τ re-swept on-device across all 3 samples in one run: people count flat at 5 for τ=0.45–0.55.
+   `CLUSTER_SIMILARITY_THRESHOLD` 0.6 → **0.45**, `RESCUE_MERGE_THRESHOLD` 0.45 → **0.30**.
 
-Plan:
-1. Thread the 5 ML Kit landmarks (eyes, nose, mouth corners) through to `FaceDetection`.
-2. `FaceAligner`: Umeyama similarity transform → warp to the canonical 112×112 InsightFace template.
-3. Try alignment with the **existing** FaceNet first (isolate the alignment effect), measure.
-4. Swap to MobileFaceNet (ArcFace-trained, 112×112 → 192-d, `(x-127.5)/128` normalization), re-sweep τ (ArcFace cosine scale is much lower — expect ~0.25–0.4), measure.
-5. Revert whichever step doesn't help, same as the two dead ends above.
+### Accuracy after (on-device, emulator, τ=0.45) — ground truth 5 people × 4 each
+
+| Sample | People | Appearances | Per-person |
+|---|---|---|---|
+| 1 | 5/5 | 19/20 | [4,3,4,4,4] |
+| 2 | 5/5 | 19/20 | [4,3,4,4,4] |
+| 3 | 5/5 | **20/20** | [4,4,4,4,4] |
+
+Samples 2 & 3 previously over-counted by 1–2 people — now exact.

@@ -28,6 +28,14 @@ data class FaceDetection(
     /** Laplacian variance of the face crop — higher is sharper. */
     val sharpness: Double,
     val trackingId: Int?,
+    /**
+     * The 5 ML Kit landmarks in source-image pixels, **spatially** ordered so alignment doesn't
+     * depend on ML Kit's subject-relative left/right naming:
+     * [outerEyeLeft.x, .y, outerEyeRight.x, .y, nose.x, .y, mouthLeft.x, .y, mouthRight.x, .y].
+     * Null if ML Kit didn't return all five (rare with LANDMARK_MODE_ALL, but happens on
+     * profile/blurred faces).
+     */
+    val landmarks: FloatArray? = null,
 ) {
     val isEdgeClipped: Boolean
         get() = bbox.left <= 1 || bbox.top <= 1 ||

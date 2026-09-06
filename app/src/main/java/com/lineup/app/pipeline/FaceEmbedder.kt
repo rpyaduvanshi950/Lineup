@@ -14,78 +14,88 @@ import kotlin.math.max
 import kotlin.math.sqrt
 
 /**
- * On-device face embedding via FaceNet (Keras-FaceNet, ported to TFLite/LiteRT), sourced from
- * shubham0204/FaceRecognition_With_FaceNet_Android (Apache-2.0):
- * https://github.com/shubham0204/FaceRecognition_With_FaceNet_Android
- *   assets/facenet.tflite — input 160x160x3, output 128-dim embedding.
+ * On-device face embedding. Two models are bundled:
  *
- * Preprocessing matches that repo's FaceNetModel.kt exactly: bilinear resize to 160x160, then
- * per-image standardization `(x - mean) / max(std, 1/sqrt(N))` over all pixels (not a fixed
- * ImageNet mean/std) — this is the classic FaceNet "prewhiten" step. Getting this normalization
- * wrong is the most common way to silently wreck embedding quality (see BUILD_GUIDE.md §3).
+ *  - [Model.MOBILEFACENET] (default): ArcFace/InsightFace-trained MobileFaceNet, 112×112 in →
+ *    192-d out, fixed `(x-127.5)/128` normalization. From
+ *    syaringan357/Android-MobileFaceNet-MTCNN-FaceAntiSpoofing. ArcFace models have far better
+ *    verification margins than classic triplet-loss FaceNet — but only when fed *aligned* faces.
+ *  - [Model.FACENET]: Keras-FaceNet, 160×160 in → 128-d out, whole-image standardization. From
+ *    shubham0204/FaceRecognition_With_FaceNet_Android. Kept as a fallback/comparison.
  *
- * Output embeddings are L2-normalized here so cosine similarity in FaceClusterer is well-defined.
+ * Either way: when ML Kit gave us 5 landmarks the crop is a proper similarity-transform
+ * alignment (see [FaceAligner]); otherwise it falls back to a generous padded bbox crop.
+ * Output is L2-normalized so cosine similarity in FaceClusterer is well-defined.
  */
-class FaceEmbedder(context: Context) : AutoCloseable {
+class FaceEmbedder(
+    context: Context,
+    private val model: Model = Model.MOBILEFACENET,
+) : AutoCloseable {
+
+    enum class Model(val asset: String, val inputSize: Int, val dim: Int, val standardize: Boolean) {
+        FACENET("facenet.tflite", 160, 128, standardize = true),
+        MOBILEFACENET("mobilefacenet.tflite", 112, 192, standardize = false),
+    }
 
     companion object {
-        const val INPUT_SIZE = 160
-        const val EMBEDDING_DIM = 128
-        private const val MODEL_ASSET = "facenet.tflite"
-
-        /** MVP alignment: no landmark-based warp, just a generous padded crop (see §3). */
+        /** Fallback only, when landmarks are missing: a generous padded bbox crop. */
         const val CROP_EXPAND_FACTOR = 1.6f
     }
 
+    val embeddingDim: Int get() = model.dim
+
     private val interpreter: Interpreter by lazy {
-        Interpreter(FileUtilCompat.loadMappedAsset(context, MODEL_ASSET))
+        Interpreter(FileUtilCompat.loadMappedAsset(context, model.asset))
     }
 
     /**
-     * Crops [frame] generously around [detection]'s bbox, resizes, and embeds it.
-     *
-     * Tried clipping this crop against neighboring faces in shared frames (same idea as
-     * RepresentativeShotSelector's collage-tile fix) to address embedding degradation on
-     * shared-frame detections. Measured on-device it made clustering *worse* (sample 1 went
-     * from 5 people/18 appearances to 8 people/20) -- clipping shrinks/skews the crop for every
-     * detection that merely shares a frame with someone else, most of which weren't actually
-     * bleeding into their neighbor, and the resulting crop asymmetry hurt more embeddings than
-     * the bleed itself did. Reverted; see README's open items for what to try instead.
+     * Some of these ported models fix the input batch at 2 (their original use case was
+     * comparing two faces in one call). Read it from the tensor shape and fill every slot with
+     * the same face — the extra slot costs a little compute but avoids resize/allocate gymnastics.
      */
+    private val batchSize: Int by lazy {
+        interpreter.getInputTensor(0).shape().firstOrNull()?.coerceAtLeast(1) ?: 1
+    }
+
+    /** Aligns (or falls back to cropping) [detection] out of [frame], resizes, and embeds it. */
     suspend fun embed(frame: Bitmap, detection: FaceDetection): FloatArray = withContext(Dispatchers.Default) {
-        val cropRect = ImageUtils.expandRect(
-            detection.bbox, CROP_EXPAND_FACTOR, frame.width, frame.height,
-        )
-        val crop = ImageUtils.cropBitmap(frame, cropRect)
-            ?: return@withContext FloatArray(EMBEDDING_DIM)
+        val face: Bitmap = detection.landmarks
+            ?.let { FaceAligner.align(frame, it, model.inputSize) }
+            ?: run {
+                val cropRect = ImageUtils.expandRect(
+                    detection.bbox, CROP_EXPAND_FACTOR, frame.width, frame.height,
+                )
+                ImageUtils.cropBitmap(frame, cropRect)
+            }
+            ?: return@withContext FloatArray(model.dim)
+
         try {
-            embedCrop(crop)
+            embedCrop(face)
         } finally {
-            // Bitmap.createBitmap(src, 0, 0, src.width, src.height) returns `src` itself, no
-            // copy -- which happens whenever the expanded+clamped crop rect exactly fills the
-            // frame (edge-clipped faces near a border). Recycling `crop` there would recycle
-            // the caller-owned, possibly-shared `frame` bitmap out from under it, crashing the
-            // next face embedded from the same frame ("cannot use a recycled source").
-            if (crop !== frame) crop.recycle()
+            // Bitmap.createBitmap(src, 0, 0, src.width, src.height) can return `src` itself with
+            // no copy (crop rect fills the whole frame). Recycling that would take out the
+            // caller-owned shared frame bitmap. Aligned bitmaps are always fresh, so safe.
+            if (face !== frame) face.recycle()
         }
     }
 
     fun embedCrop(crop: Bitmap): FloatArray {
-        val resized = if (crop.width == INPUT_SIZE && crop.height == INPUT_SIZE) crop
-        else Bitmap.createScaledBitmap(crop, INPUT_SIZE, INPUT_SIZE, true)
+        val size = model.inputSize
+        val resized = if (crop.width == size && crop.height == size) crop
+        else Bitmap.createScaledBitmap(crop, size, size, true)
 
         val input = preprocess(resized)
         if (resized !== crop) resized.recycle()
 
-        val output = Array(1) { FloatArray(EMBEDDING_DIM) }
+        val output = Array(batchSize) { FloatArray(model.dim) }
         interpreter.run(input, output)
         return l2Normalize(output[0])
     }
 
-    /** Resize -> raw RGB floats -> whole-image standardization, matching FaceNetModel.kt. */
     private fun preprocess(bmp: Bitmap): ByteBuffer {
-        val pixels = IntArray(INPUT_SIZE * INPUT_SIZE)
-        bmp.getPixels(pixels, 0, INPUT_SIZE, 0, 0, INPUT_SIZE, INPUT_SIZE)
+        val size = model.inputSize
+        val pixels = IntArray(size * size)
+        bmp.getPixels(pixels, 0, size, 0, 0, size, size)
 
         val raw = FloatArray(pixels.size * 3)
         var i = 0
@@ -95,18 +105,25 @@ class FaceEmbedder(context: Context) : AutoCloseable {
             raw[i++] = (p and 0xFF).toFloat()
         }
 
-        var mean = 0.0
-        for (v in raw) mean += v
-        mean /= raw.size
-        var variance = 0.0
-        for (v in raw) variance += (v - mean) * (v - mean)
-        variance /= raw.size
-        val std = max(sqrt(variance), 1.0 / sqrt(raw.size.toDouble()))
+        val perImage = FloatArray(raw.size)
+        if (model.standardize) {
+            // FaceNet "prewhiten": (x - mean) / max(std, 1/sqrt(N)) over all pixels.
+            var mean = 0.0
+            for (v in raw) mean += v
+            mean /= raw.size
+            var variance = 0.0
+            for (v in raw) variance += (v - mean) * (v - mean)
+            variance /= raw.size
+            val std = max(sqrt(variance), 1.0 / sqrt(raw.size.toDouble()))
+            for (j in raw.indices) perImage[j] = ((raw[j] - mean) / std).toFloat()
+        } else {
+            // MobileFaceNet: fixed (x - 127.5) / 128.
+            for (j in raw.indices) perImage[j] = (raw[j] - 127.5f) / 128f
+        }
 
-        val buffer = ByteBuffer
-            .allocateDirect(raw.size * 4)
-            .order(ByteOrder.nativeOrder())
-        for (v in raw) buffer.putFloat(((v - mean) / std).toFloat())
+        // Fill every batch slot with the same face (see [batchSize]).
+        val buffer = ByteBuffer.allocateDirect(perImage.size * 4 * batchSize).order(ByteOrder.nativeOrder())
+        repeat(batchSize) { for (v in perImage) buffer.putFloat(v) }
         buffer.rewind()
         return buffer
     }

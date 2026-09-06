@@ -3,8 +3,10 @@ package com.lineup.app.pipeline
 import android.graphics.BitmapFactory
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection as MlKitFaceDetection
+import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.face.FaceLandmark
 import com.lineup.app.model.FaceDetection
 import com.lineup.app.model.FrameRef
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +66,7 @@ class FaceDetectorWrapper {
                             smilingProb = face.smilingProbability ?: -1f,
                             sharpness = sharpness,
                             trackingId = face.trackingId,
+                            landmarks = extractLandmarks(face),
                         ),
                     )
                 }
@@ -73,6 +76,24 @@ class FaceDetectorWrapper {
             onProgress(i + 1, frames.size, frame.path)
         }
         out
+    }
+
+    /**
+     * The 5 landmarks alignment needs, spatially ordered by x so we don't depend on ML Kit's
+     * subject-relative LEFT/RIGHT naming. Null if any of the five is missing.
+     */
+    private fun extractLandmarks(face: Face): FloatArray? {
+        val eyeA = face.getLandmark(FaceLandmark.LEFT_EYE)?.position ?: return null
+        val eyeB = face.getLandmark(FaceLandmark.RIGHT_EYE)?.position ?: return null
+        val nose = face.getLandmark(FaceLandmark.NOSE_BASE)?.position ?: return null
+        val mouthA = face.getLandmark(FaceLandmark.MOUTH_LEFT)?.position ?: return null
+        val mouthB = face.getLandmark(FaceLandmark.MOUTH_RIGHT)?.position ?: return null
+
+        val (eyeL, eyeR) = if (eyeA.x <= eyeB.x) eyeA to eyeB else eyeB to eyeA
+        val (mouthL, mouthR) = if (mouthA.x <= mouthB.x) mouthA to mouthB else mouthB to mouthA
+        return floatArrayOf(
+            eyeL.x, eyeL.y, eyeR.x, eyeR.y, nose.x, nose.y, mouthL.x, mouthL.y, mouthR.x, mouthR.y,
+        )
     }
 
     fun close() = detector.close()

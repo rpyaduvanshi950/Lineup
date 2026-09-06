@@ -15,8 +15,12 @@ class FaceClusterer(
     private val similarityThreshold: Float = CLUSTER_SIMILARITY_THRESHOLD,
 ) {
     companion object {
-        /** Named per BUILD_GUIDE.md — tune by sweeping 0.50..0.80 against known cluster counts. */
-        const val CLUSTER_SIMILARITY_THRESHOLD = 0.6f
+        /**
+         * Tuned by sweeping against known cluster counts (see the sweep log in VideoRepository).
+         * MobileFaceNet + 5-point alignment: same-person cosine sits lower than plain FaceNet's,
+         * so this is well below the old FaceNet value of 0.6.
+         */
+        const val CLUSTER_SIMILARITY_THRESHOLD = 0.45f
 
         /**
          * A single sharp, frontal, well-lit crop can still land below [CLUSTER_SIMILARITY_THRESHOLD]
@@ -28,7 +32,7 @@ class FaceClusterer(
          * into whichever real cluster it's closest to, at a lower bar.
          */
         const val RESCUE_MERGE_MAX_SIZE = 2
-        const val RESCUE_MERGE_THRESHOLD = 0.45f
+        const val RESCUE_MERGE_THRESHOLD = 0.30f
     }
 
     fun cluster(faces: List<EmbeddedFace>): List<PersonCluster> {

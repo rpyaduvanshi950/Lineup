@@ -10,7 +10,7 @@ research behind each tech choice.
 ## Status
 
 - **Step 1 (ingest & detect)** — done. SAF video picker → `FrameExtractor` → `FaceDetectorWrapper`.
-- **Step 2 (identify)** — done. `FaceEmbedder` → `FaceClusterer` → `AppearanceSegmenter`.
+- **Step 2 (identify)** — done. `FaceAligner` → `FaceEmbedder` (MobileFaceNet/ArcFace) → `FaceClusterer` → `AppearanceSegmenter`.
 - **Step 3 (select & compose)** — done. `ShotScorer` → `RepresentativeShotSelector` →
   `CollageComposer`, wired into a real `ResultsActivity` with save/share.
 - **Step 4 (wire, verify, ship)** — done: full pipeline verified end-to-end on-device
@@ -66,8 +66,8 @@ values.
 
 1. Android Studio (or the CLI) with SDK platform 35 and build-tools ≥35, JDK 17.
 2. `./gradlew :app:assembleDebug` — first run needs network to pull ML Kit / AndroidX / LiteRT.
-   `app/src/main/assets/facenet.tflite` (the FaceNet embedding model) is already bundled in
-   this repo.
+   `app/src/main/assets/mobilefacenet.tflite` (the embedding model) is already bundled in
+   this repo (`facenet.tflite` is also bundled as a selectable fallback).
 3. Install on a physical device or emulator and run. Live-camera capture is not implemented or
    required — pick an existing portrait video via the file picker.
 
@@ -87,22 +87,23 @@ similarity-threshold sweep per sample video (tag `Lineup.Step2`).
 | Stage | Model | Notes |
 |---|---|---|
 | Face detection | `com.google.mlkit:face-detection:16.1.7` (bundled) | `PERFORMANCE_MODE_ACCURATE`, landmarks + classification + tracking on. Ships in the APK, no network needed at runtime. |
-| Face embedding | **FaceNet**, `facenet.tflite` — 160×160×3 input, 128-dim output | Sourced from [shubham0204/FaceRecognition_With_FaceNet_Android](https://github.com/shubham0204/FaceRecognition_With_FaceNet_Android) (Apache-2.0). Preprocessing matches that repo's `FaceNetModel.kt` exactly: bilinear resize, then whole-image standardization `(x - mean) / max(std, 1/√N)` (the classic FaceNet "prewhiten" step) — getting this normalization wrong is the most common way to silently break embedding quality, so it was copied verbatim rather than re-derived. Output is L2-normalized so cosine similarity is well-defined. |
+| Face alignment | 2D similarity transform (Procrustes) — `FaceAligner.kt` | The 5 ML Kit landmarks (eyes, nose, mouth corners) are fit to the InsightFace canonical 112×112 template via a closed-form scale+rotation+translation (no shear), and the face is warped through that `android.graphics.Matrix`. ArcFace embeddings are only meaningful on aligned faces. Falls back to a padded bbox crop if ML Kit returned fewer than 5 landmarks. |
+| Face embedding | **MobileFaceNet (ArcFace-trained)**, `mobilefacenet.tflite` — 112×112×3 input, 192-dim output | Sourced from [syaringan357/Android-MobileFaceNet-MTCNN-FaceAntiSpoofing](https://github.com/syaringan357/Android-MobileFaceNet-MTCNN-FaceAntiSpoofing) (MIT). Fixed `(x − 127.5) / 128` normalization. The model's input tensor is batch-2 (its origin compares two faces per call); both slots are filled with the same aligned face and slot 0's output is used. Output is L2-normalized so cosine similarity is well-defined. `facenet.tflite` (128-dim, whole-image "prewhiten") remains selectable via `FaceEmbedder.Model.FACENET`. |
 | Inference runtime | `com.google.ai.edge.litert:litert:2.1.0` | LiteRT — current name for TensorFlow Lite; `Interpreter` API is the same as `org.tensorflow.lite.Interpreter`. |
 | Clustering | Hand-rolled agglomerative clustering, centroid cosine similarity | No external library — appropriate at this scale (a few hundred points per video). |
 
 ## Similarity threshold
 
-`FaceClusterer.CLUSTER_SIMILARITY_THRESHOLD = 0.6`.
+`FaceClusterer.CLUSTER_SIMILARITY_THRESHOLD = 0.45` (cosine, on L2-normalized MobileFaceNet
+embeddings of aligned faces).
 
-Chosen by: (1) a standalone same-vs-different-person cosine check on hand-picked crops from all
-three sample videos — same-person pairs scored 0.70–0.98, different-person pairs scored
--0.11–0.48, a clean gap; then (2) a τ sweep (0.50→0.80 in 0.05 steps) run through the full
-detect→embed→cluster→segment pipeline. τ=0.60–0.65 was the only range that produced exactly 5
-clusters on all three sample videos, with appearance counts close to the expected 4-per-person
-(20 total): 18/20, 20/20, 19/20 across the three clips. Above τ=0.70, a single person's varying
-expression/pose starts splitting into extra clusters even as raw appearance totals drift upward,
-which is the wrong kind of "more appearances." `AppearanceSegmenter` additionally pre-filters
+Chosen by a τ sweep (0.20→0.60 in 0.05 steps) run through the full detect→align→embed→cluster→
+segment pipeline on all three sample clips in one on-device run. The people count is flat at the
+correct **5** across τ = 0.45–0.55 on all three videos (below 0.45 people merge together; the
+plateau is the stable operating point), so 0.45 sits at the low edge of that plateau — favouring
+recall of distinct people. ArcFace/MobileFaceNet same-person cosines sit lower than plain
+FaceNet's, which is why this is well below the old FaceNet value of 0.6. `AppearanceSegmenter`
+additionally pre-filters
 detections below `SHARPNESS_MIN = 150.0` (calibrated against the real Laplacian-variance
 distribution of face crops in the sample videos — see comments in that file) and `|yaw| >
 MAX_YAW = 45°` **before** embedding/clustering, not just before counting appearances — a blurry
@@ -110,20 +111,23 @@ crop embeds to a near-random vector, and doing the filter late let one show up a
 "person."
 
 A `RESCUE_MERGE` second pass in `FaceClusterer` gives any leftover small (≤2-face) cluster one
-more chance to merge into its nearest real cluster at a lower `RESCUE_MERGE_THRESHOLD = 0.45`
+more chance to merge into its nearest real cluster at a lower `RESCUE_MERGE_THRESHOLD = 0.30`
 before it's counted as a standalone person — added after finding, on-device, that a single sharp
 frontal crop can still land below the main threshold against its own person purely from scale
 mismatch (a much closer framing than that person's other shots).
 
-## Verified on-device (emulator, real ML Kit + real FaceNet, threshold=0.6)
+## Verified on-device (emulator, real ML Kit + real MobileFaceNet + alignment, threshold=0.45)
 
 | Sample | People found | Appearances | Per-person |
 |---|---|---|---|
-| 1 | **5** (matches ground truth) | 18/20 | [4,2,4,4,4] |
-| 2 | 7 | 22 | [4,4,4,4,4,1,1] |
-| 3 | 6 | 21 | [5,1,4,4,3,4] |
+| 1 | **5** (matches ground truth) | 19/20 | [4,3,4,4,4] |
+| 2 | **5** (matches ground truth) | 19/20 | [4,3,4,4,4] |
+| 3 | **5** (matches ground truth) | **20/20** | [4,4,4,4,4] |
 
-(Single-run snapshot — see the run-to-run variance note below.)
+Ground truth for all three clips is 5 people × 4 appearances each. The prior FaceNet-only build
+over-counted samples 2 and 3 by 1–2 people; ArcFace embeddings on landmark-aligned faces fixed
+that. (Single-run snapshot — the emulator has some run-to-run variance in detection count; the
+people count has been stable at 5 across runs.)
 
 ## Step 3: representative shot + collage
 
@@ -142,16 +146,18 @@ save-to-gallery (`MediaStore.Images`) and share (`FileProvider` + `ACTION_SEND`)
 
 ## Known deviations / open items
 
-- Samples 2 and 3 still over-count people by 1–2 (see the on-device table above). Traced to a
-  shared two-face frame (sample 2, ~10.1s): the 1.6× expanded *embedding* crop for each face
-  likely bleeds into the neighboring face, degrading both embeddings below even the rescue-merge
-  threshold. **Tried and reverted:** applying the same neighbor-clipping used for the collage crop
-  to the embedding crop in `FaceEmbedder` — measured on-device, it made clustering *worse* (sample
-  1 went from 5 people/18 appearances to 8 people/20). Clipping shrinks/skews the crop for every
-  detection that merely shares a frame with someone else, and most of those weren't actually
-  bleeding into their neighbor; the resulting asymmetric crop hurt more embeddings than the bleed
-  itself did. The real fix is more targeted: only clip when the *unclipped* 1.6x rect would
-  actually overlap the neighbor's bbox, not whenever a neighbor merely exists in the frame.
+- Per-person appearance counts are 19/20, 19/20, 20/20 across the three clips — one appearance
+  on samples 1 and 2 is a person whose two nearby windows get merged (or one very short window is
+  dropped by the sharpness/pose pre-filter) rather than a mis-identification. People counts are
+  exact (5/5/5).
+- **Tried and reverted (FaceNet build):** neighbor-clipping the embedding crop to stop a shared
+  two-face frame bleeding across faces — measured on-device it made clustering *worse* (5→8
+  people). Landmark alignment + ArcFace made it moot: aligned crops are driven by the 5 facial
+  landmarks, not a fixed bbox expansion, so a neighbor sharing the frame no longer skews the crop.
+- **Tried and reverted:** track-averaged clustering (group per-frame faces by ML Kit
+  `trackingId`, cluster the track means). Collapsed sample 1 from 5 people to 2 — ML Kit tracking
+  is not shot-boundary aware and this footage is all hard cuts, so a "track" spans multiple people
+  framed similarly across a cut.
 - Run-to-run variance was also noticeable on this emulator: identical code/video produced 186-210
   raw detections across repeated runs (ML Kit accurate mode and/or `MediaMetadataRetriever`'s
   decode timing aren't perfectly deterministic here), which shifts cluster/appearance counts by
@@ -162,7 +168,8 @@ save-to-gallery (`MediaStore.Images`) and share (`FileProvider` + `ACTION_SEND`)
   ended up mouth/chin-only) rather than the intended generous 2.5× crop. Better fix: re-center
   the clipped rect on the face rather than just shrinking it, or fall back to a slightly lower
   expansion factor before clipping.
-- No landmark-based face alignment yet (MVP padded-bbox-crop only, per `BUILD_GUIDE.md` §3).
+- Face alignment uses ML Kit's 5 landmarks (not a 68-point / dense mesh); good enough for
+  frontal-ish portrait footage. Faces with <5 landmarks fall back to a padded bbox crop.
 - `saveToGallery()` needs `WRITE_EXTERNAL_STORAGE` at runtime on API 26-28 (declared in the
   manifest with `maxSdkVersion="28"`, but no runtime permission-request flow is implemented yet —
   untested below API 29).
