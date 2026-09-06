@@ -62,16 +62,71 @@ the dark canvas and the amber fill (near-black text/icons on amber, per `color_o
 Layouts use ConstraintLayout guidelines/percentage dimensions rather than fixed device-specific
 values.
 
-## Build & setup
+## How to run
 
-1. Android Studio (or the CLI) with SDK platform 35 and build-tools ≥35, JDK 17.
-2. `./gradlew :app:assembleDebug` — first run needs network to pull ML Kit / AndroidX / LiteRT.
-   `app/src/main/assets/mobilefacenet.tflite` (the embedding model) is already bundled in
-   this repo (`facenet.tflite` is also bundled as a selectable fallback).
-3. Install on a physical device or emulator and run. Live-camera capture is not implemented or
-   required — pick an existing portrait video via the file picker.
+### Prerequisites
 
-To run the instrumented checkpoint tests (need a connected device):
+| | |
+|---|---|
+| JDK | 17 (Temurin/OpenJDK) |
+| Android SDK | platform **35**, build-tools **≥35.0.0**, platform-tools (`adb`) |
+| Gradle | wrapper is committed — use `./gradlew`, don't install Gradle yourself (it pins 8.11.1 / AGP 8.7.3 / Kotlin 2.2.0) |
+| Device | a physical Android device (API 26+ / Android 8.0+) with USB debugging on, **or** an emulator running an API 26+ system image |
+| Network | needed **only for the first build** (pulls ML Kit / AndroidX / LiteRT from Maven). The app itself runs 100% offline — both `.tflite` models and the bundled ML Kit face model ship inside the APK. |
+
+Point Gradle at your SDK with either `ANDROID_HOME` / `ANDROID_SDK_ROOT` in your environment or a `local.sdk.dir` line in `local.properties` at the repo root, e.g. `sdk.dir=/home/you/Android/Sdk`.
+
+### Option A — install the prebuilt APK
+
+If a `app-debug.apk` was supplied with the submission, just:
+
+```
+adb install -r app-debug.apk
+```
+
+Then open **Lineup** from the launcher.
+
+### Option B — build from source
+
+```
+# from the repo root
+./gradlew :app:assembleDebug
+```
+
+The APK lands at `app/build/outputs/apk/debug/app-debug.apk` (~90 MB — it bundles ML Kit, LiteRT,
+and both embedding models for offline use). Install it on a connected device/emulator:
+
+```
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Or open the project in Android Studio (Giraffe or newer), let it sync, pick a device, and hit
+**Run**.
+
+### Using the app
+
+1. Launch **Lineup**. The first screen has a single **Choose a video** button.
+2. Pick a **portrait video** from the system file picker (the three assignment sample clips, or
+   any portrait `.mp4`/`.mov`). Live-camera capture is intentionally not implemented — the
+   assignment only requires processing an existing video.
+3. The **Processing** screen runs the whole pipeline on-device and shows a 5-stage stepper —
+   Extract → Detect → Embed → Cluster → Compose — with a live blurred preview of the frame being
+   worked on and a counter that animates up to the number of unique people found. A 30-second
+   clip takes roughly **30–90 s** on a mid-range physical device (longer on an emulator).
+4. The **Results** screen shows the generated collage (one representative shot per person),
+   a per-person list with **appearance counts**, and **Save** (writes the collage to the gallery
+   via `MediaStore`) and **Share** (`ACTION_SEND` via `FileProvider`) actions.
+
+### Getting the sample videos onto the device
+
+Physical device: copy them into `Downloads` (`adb push sample1.mp4 /sdcard/Download/`) or via
+MTP, then pick them from the file picker.
+
+Emulator: `adb push sample1.mp4 /sdcard/Download/` then pick from the picker, or drag-and-drop
+the file onto the emulator window.
+
+### Running the instrumented checkpoint tests (optional, needs a connected device)
+
 ```
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
