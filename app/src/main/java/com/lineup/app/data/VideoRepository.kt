@@ -56,7 +56,7 @@ class VideoRepository(private val context: Context) {
 
             // Filter out blur/extreme-pose BEFORE embedding+clustering, not just before
             // counting appearances: a blurry crop embeds to a near-random vector (verified via
-            // a standalone same/different-person check, see BUILD_GUIDE.md Step 2) that can
+            // a standalone same/different-person check) that can
             // fail to merge into its real cluster and show up as a phantom extra "person" once
             // clusters.size is read as the people count. AppearanceSegmenter's own pre-filter
             // stays too, as a defensive no-op, in case it's ever called on unfiltered input.

@@ -3,7 +3,7 @@ package com.lineup.app.pipeline
 import android.content.Context
 import android.graphics.Bitmap
 // LiteRT (com.google.ai.edge.litert:litert) ships its Interpreter under the same package as
-// classic TFLite for drop-in compatibility -- see BUILD_GUIDE.md's LiteRT note.
+// classic TFLite for drop-in compatibility.
 import org.tensorflow.lite.Interpreter
 import com.lineup.app.model.FaceDetection
 import kotlinx.coroutines.Dispatchers

@@ -4,9 +4,6 @@ On-device Android app that processes a portrait video, detects faces, identifies
 people across separate appearances, and produces a shareable collage — one representative shot
 per person, with per-person appearance counts. No backend; everything runs on the phone.
 
-Built against `BUILD_GUIDE.md` in this repo, which has the full step-by-step plan and the
-research behind each tech choice.
-
 ## Status
 
 - **Step 1 (ingest & detect)** — done. SAF video picker → `FrameExtractor` → `FaceDetectorWrapper`.

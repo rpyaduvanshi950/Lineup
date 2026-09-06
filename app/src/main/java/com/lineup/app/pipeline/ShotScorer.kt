@@ -6,7 +6,7 @@ import kotlin.math.abs
 /**
  * Scores a face detection as a collage candidate on frontality, sharpness (normalized against
  * the sharpest candidate in the same pool, since "sharp" is relative to what a clip actually
- * offers), eyes-open, and smiling — per BUILD_GUIDE.md Step 3. Higher is better, roughly 0..1.
+ * offers), eyes-open, and smiling. Higher is better, roughly 0..1.
  */
 object ShotScorer {
 

@@ -5,7 +5,7 @@ import com.lineup.app.model.PersonCluster
 import com.lineup.app.model.RepresentativeShot
 
 /**
- * Picks the single best candidate face per person for the collage, per BUILD_GUIDE.md Step 3:
+ * Picks the single best candidate face per person for the collage:
  * prefer non-edge-clipped candidates (fall back to edge-clipped only if that's all a person has),
  * score the pool, take the max, and expand its bbox generously so the collage tile is never a
  * tight, low-resolution face crop.
@@ -14,7 +14,7 @@ class RepresentativeShotSelector(
     private val cropExpandFactor: Float = CROP_EXPAND_FACTOR,
 ) {
     companion object {
-        /** 2-3x per BUILD_GUIDE.md; a full head-and-shoulders tile, not a mugshot. */
+        /** 2-3x: a full head-and-shoulders tile, not a mugshot. */
         const val CROP_EXPAND_FACTOR = 2.5f
     }
 

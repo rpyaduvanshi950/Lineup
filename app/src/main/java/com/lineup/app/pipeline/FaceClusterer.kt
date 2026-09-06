@@ -9,7 +9,7 @@ import com.lineup.app.model.PersonCluster
  *
  * Centroid-linkage: repeatedly merges the two clusters whose centroids are most similar,
  * until the best remaining pair falls below [CLUSTER_SIMILARITY_THRESHOLD]. That threshold is
- * the one knob to sweep against ground truth (see BUILD_GUIDE.md §2, Step 2 checkpoint).
+ * the one knob to sweep against ground truth (see the "Similarity threshold" section of the README).
  */
 class FaceClusterer(
     private val similarityThreshold: Float = CLUSTER_SIMILARITY_THRESHOLD,

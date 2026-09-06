@@ -14,7 +14,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Step 2 checkpoints (BUILD_GUIDE.md):
+ * Step 2 checkpoints:
  *  1. embeddingSanityCheck — same-person vs different-person cosine similarity, BEFORE trusting
  *     the clusterer with anything.
  *  2. sweepSampleN — run frames -> detect -> embed once per sample, then sweep
