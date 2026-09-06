@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,10 +19,31 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // A dedicated release key if you have one (put its details in keystore.properties at the
+        // repo root, which is gitignored); otherwise the release build falls back to the standard
+        // debug keystore so `assembleRelease` still produces an installable, verified APK.
+        create("release") {
+            val props = Properties().apply {
+                val f = rootProject.file("keystore.properties")
+                if (f.exists()) FileInputStream(f).use { load(it) }
+            }
+            if (props.getProperty("storeFile") != null) {
+                storeFile = file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig =
+                if (rootProject.file("keystore.properties").exists()) signingConfigs.getByName("release")
+                else signingConfigs.getByName("debug")
         }
     }
 
@@ -34,6 +58,13 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    lint {
+        // A lint detector (NonNullableMutableLiveDataDetector) crashes under this AGP/lint combo;
+        // it's not a code issue and must not block `assembleRelease`.
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     androidResources {

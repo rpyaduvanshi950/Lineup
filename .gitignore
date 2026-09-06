@@ -16,3 +16,8 @@
 
 # Local tooling state, not project source
 /.claude/
+
+# Release signing (local only)
+keystore.properties
+*.jks
+*.keystore

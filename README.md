@@ -87,18 +87,23 @@ Then open **Lineup** from the launcher.
 
 ```
 # from the repo root
-./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease     # or :app:assembleDebug
 ```
 
-The APK lands at `app/build/outputs/apk/debug/app-debug.apk` (~90 MB — it bundles ML Kit, LiteRT,
-and both embedding models for offline use). Install it on a connected device/emulator:
+The APK lands at `app/build/outputs/apk/release/app-release.apk` (~90 MB — it bundles ML Kit,
+LiteRT, and both embedding models for offline use). Install it on a connected device/emulator:
 
 ```
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 Or open the project in Android Studio (Giraffe or newer), let it sync, pick a device, and hit
 **Run**.
+
+**Release signing:** if `keystore.properties` (gitignored) exists at the repo root with
+`storeFile` / `storePassword` / `keyAlias` / `keyPassword`, the release build is signed with that
+key. Otherwise it falls back to the standard Android debug keystore so `assembleRelease` still
+produces an installable, signature-verified APK out of the box.
 
 ### Using the app
 
