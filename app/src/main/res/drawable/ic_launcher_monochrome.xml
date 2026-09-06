@@ -1,27 +1,17 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!--
-      A "lineup": three head-and-shoulders figures side by side, the centre one amber and
-      forward, the two flanking ones coral and set back. All geometry sits inside the
-      66dp adaptive-icon safe zone (viewport ~21..87).
-    -->
-
-    <!-- Left figure (set back) -->
-    <path android:fillColor="#FF6B5B"
+    <!-- Single-colour silhouette of the three-figure lineup, for Android 13+ themed icons. -->
+    <path android:fillColor="#FFFFFF"
         android:pathData="M30,50m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0z" />
-    <path android:fillColor="#FF6B5B"
+    <path android:fillColor="#FFFFFF"
         android:pathData="M18,84c0,-8 5,-14 12,-14s12,6 12,14z" />
-
-    <!-- Right figure (set back) -->
-    <path android:fillColor="#FF6B5B"
+    <path android:fillColor="#FFFFFF"
         android:pathData="M78,50m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0z" />
-    <path android:fillColor="#FF6B5B"
+    <path android:fillColor="#FFFFFF"
         android:pathData="M66,84c0,-8 5,-14 12,-14s12,6 12,14z" />
-
-    <!-- Centre figure (forward, brand amber) -->
-    <path android:fillColor="#F2B84B"
+    <path android:fillColor="#FFFFFF"
         android:pathData="M54,40m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0z" />
-    <path android:fillColor="#F2B84B"
+    <path android:fillColor="#FFFFFF"
         android:pathData="M35,86c0,-12 8,-20 19,-20s19,8 19,20z" />
 </vector>
